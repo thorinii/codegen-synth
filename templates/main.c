@@ -66,7 +66,6 @@ void jack_shutdown (void *arg) {
 }
 
 void *msg_thread(void *arg) {
-  fprintf(stderr, "Msg thread\n");
   char *line = NULL;
   size_t bufferLength = 0;
   int lineLength = 0;
@@ -82,6 +81,7 @@ void *msg_thread(void *arg) {
     }
   }
   free(line);
+
   return NULL;
 }
 
