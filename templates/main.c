@@ -13,9 +13,9 @@ jack_port_t *input_midi_port;
 jack_port_t *output_port;
 jack_client_t *client;
 
-int VAR_COUNT; float vars[0]; /* %%STORAGE%% */
+int VAR_COUNT; double vars[0]; /* %%STORAGE%% */
 
-float make_sample() {
+static double make_sample() {
   /* %%PROCESS%% */
 }
 
@@ -52,6 +52,9 @@ int process (jack_nframes_t nframes, void *arg) {
 
   jack_default_audio_sample_t *out = (jack_default_audio_sample_t *) jack_port_get_buffer(output_port, nframes);
   for (int i = 0; i < nframes; i++) {
+    make_sample();
+    make_sample();
+    make_sample();
     out[i] = make_sample();
   }
   return 0;
@@ -71,8 +74,8 @@ void *msg_thread(void *arg) {
   int lineLength = 0;
   while ((lineLength = getline(&line, &bufferLength, stdin)) >= 0) {
     int var = 0;
-    float value = 0;
-    if (sscanf(line, "set %d %f", &var, &value)) {
+    double value = 0;
+    if (sscanf(line, "set %d %lf", &var, &value)) {
       if (var >= 0 && var < VAR_COUNT) {
         vars[var] = value;
       } else {

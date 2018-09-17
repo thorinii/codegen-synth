@@ -6,16 +6,23 @@ function mkNodeDefinition (options) {
     storage: null,
     init: null,
     process: null,
+    processEpilogue: null,
     isDirect: true,
     ...options
   })
 }
 
+const Constant = mkNodeDefinition({
+  out: ['out'],
+  params: ['value'],
+  process: 'double %%out%% = %%value%%;',
+});
+
 const Variable = mkNodeDefinition({
   out: ['out'],
   params: ['value', 'varId'],
   init: 'vars[%%varId%%] = %%value%%;',
-  process: 'float %%out%% = vars[%%varId%%];',
+  process: 'double %%out%% = vars[%%varId%%];',
 })
 
 class Model {
@@ -36,6 +43,10 @@ class Model {
     return node;
   }
 
+  addConstant (value) {
+    return this.addNode(Constant, { value })
+  }
+
   addVariable (name, initialValue) {
     const varId = this._varCount++;
     const node = this._createNode(Variable, { value: initialValue, varId });
@@ -47,6 +58,8 @@ class Model {
   }
 
   connect (from, to) {
+    if (from.out !== undefined) from = from.out;
+    if (to.in !== undefined) to = to.in;
     to.push(from);
   }
 
