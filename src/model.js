@@ -67,6 +67,19 @@ class Model {
     this._eventListeners.push(['midi.note-down', msg => callback(msg.note, msg.velocity)]);
   }
 
+  trimUnusedNodes () {
+    const usedOutputs = new Set();
+    this.out.forEach(o => usedOutputs.add(o));
+
+    this.nodes.forEach(n => {
+      Array.from(n._inputs.values()).forEach(i => i.forEach(o => usedOutputs.add(o)));
+    });
+
+    this.nodes = this.nodes.filter(n => {
+      return Array.from(n._outputs.values()).some(o => usedOutputs.has(o));
+    })
+  }
+
   _createNode (info, params) {
     const id = this._idCounter++;
     const node = {

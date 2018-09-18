@@ -6,6 +6,8 @@
   "dependencies": {
     "byline": "^5.0.0",
     "denodeify": "^1.2.1",
+    "express": "^4.16.3",
+    "pug": "^2.0.3",
     "tmp": "^0.0.33"
   }
 }

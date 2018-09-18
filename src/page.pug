@@ -1,0 +1,69 @@
+doctype
+html
+  head
+    title Codegen Synth
+
+  body
+    h1 Codegen Synth
+
+    .editor-container
+      #rete.node-editor
+
+    script(src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js")
+    script(src="https://cdn.jsdelivr.net/npm/rete@1.0.0-alpha.9/build/rete.min.js")
+    script(src="https://cdn.jsdelivr.net/npm/alight@0.14.1/alight.min.js")
+    script(src="https://cdn.jsdelivr.net/npm/rete-alight-render-plugin@0.1.5/build/alight-render-plugin.min.js")
+    script(src="https://cdn.jsdelivr.net/npm/rete-connection-plugin@0.1.2/build/connection-plugin.min.js")
+    script(src='/frontend.js')
+
+    style.
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .editor-container {
+        flex-grow: 1;
+      }
+
+      #rete {
+        width: 100%;
+        height: 100%;
+
+        background: #011112;
+      }
+
+      .socket.real {
+        background: #96b38a;
+      }
+
+      .socket.midi {
+        background: #b3968a;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+
+      .node {
+        border-radius: 3px;
+        background-color: #1c383f;
+        border-color: #1c383f;
+      }
+
+      .node.selected {
+        background-color: #448899;
+        border-color: #448899;
+      }
+
+      .node:hover {
+        background-color: #1288a5;
+        border-color: #1288a5;
+      }
+
+      .connection path {
+        stroke-width: 3px;
+        stroke: #883311;
+      }

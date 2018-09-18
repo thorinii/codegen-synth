@@ -1,11 +1,9 @@
 const byline = require('byline');
-const childProcess = require('child_process');
-const execFile = childProcess.execFile;
-const spawn = childProcess.spawn;
+const { execFile, spawn } = require('child_process');
 const denodeify = require('denodeify');
 const fs = require('fs');
 const tmp = require('tmp');
-const promisify = require('util').promisify;
+const { promisify } = require('util');
 
 class Engine {
   constructor (model, process) {
@@ -34,13 +32,23 @@ class Engine {
     this._model._fire(type, msg);
   }
 
+  stop () {
+    this._process.kill();
+  }
+
   async waitForExit () {
     await onExit(this._process);
   }
 }
 
 async function buildAndStartEngine (model) {
+  const compiled = await compile(model);
+  return startEngine(compiled);
+}
+
+async function compile (model) {
   console.log('Generating code...');
+  model.trimUnusedNodes();
   const schedule = scheduleNodes(model);
   const template = await denodeify(fs.readFile)('templates/main.c', 'utf8');
   const source = generateEngineSource(template, model, schedule);
@@ -50,11 +58,7 @@ async function buildAndStartEngine (model) {
     prefix: 'codegen-synth-',
     postfix: '.c',
   })
-  const tmpBinaryFile = await denodeify(tmp.file)({
-    discardDescriptor: true,
-    prefix: 'codegen-synth-',
-    postfix: '',
-  })
+  const tmpBinaryFile = tmpSourceFile.replace(/.c$/, '');
 
   await denodeify(fs.writeFile)(tmpSourceFile, source, 'utf8')
 
@@ -69,15 +73,21 @@ async function buildAndStartEngine (model) {
       '-lm', '-ljack', '-lpthread',
     ]);
 
-    console.log('Starting compiled engine...');
-    const engineProcess = spawn(tmpBinaryFile, [], {
-      stdio: ['pipe', 'pipe', 'inherit']
-    });
-    return new Engine(model, engineProcess);
+    return {
+      model,
+      binary: tmpBinaryFile
+    };
   } catch (e) {
     if (e.stderr) throw new Error('Failed to compile source: ' + e.stderr.trim());
     else throw e;
   }
+}
+
+function startEngine (compiled) {
+  const engineProcess = spawn(compiled.binary, [], {
+    stdio: ['pipe', 'pipe', 'inherit']
+  });
+  return new Engine(compiled.model, engineProcess);
 }
 
 function generateEngineSource (template, model, schedule) {
@@ -206,10 +216,10 @@ function scheduleNodes (model) {
 function onExit(childProcess) {
   return new Promise((resolve, reject) => {
     childProcess.once('exit', (code, signal) => {
-      if (code === 0) {
+      if (code === 0 || code === null) {
         resolve(undefined);
       } else {
-        reject(new Error('Exit with error code: '+code));
+        reject(new Error('Exit with error code: ' + code));
       }
     });
     childProcess.once('error', (err) => {
@@ -219,5 +229,7 @@ function onExit(childProcess) {
 }
 
 module.exports = {
-  buildAndStartEngine
+  buildAndStartEngine,
+  compile,
+  startEngine
 };
