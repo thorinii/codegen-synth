@@ -1,10 +1,18 @@
 # TODO
 
-* Serialisation
+* Environment/Serialisation
+    - Convert saved graph to (nodes, edges) form
+    - Private data structures in frontend (eg for connections, JS node contents, etc)
+    - Preserve location info
+    - Feed back into GraphUi
+    - Add default Output node
+* Compiler revamp
+    * Pipeline that works on graphs:
+      abstract graph -> scalarised -> flattened -> partitioned -> scheduled -> C code
+                                                               -> controller
 * Noise node
 * Linear automatic envelope node
 * Low pass node
-* Private data structures in frontend
 * MIDI CC node
 * JS node
 * MIDI Note node

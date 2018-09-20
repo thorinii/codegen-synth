@@ -4,13 +4,36 @@ html
     title Codegen Synth
 
   body
-    h1 Codegen Synth
+    .page
+      .sidebar
+        .title-header Codegen Synth
 
-    .toolbar
-      button(v-for='button in buttons', v-on:click='button.click()') {{ button.title }}
+        .toolbox
+          .header Nodes
+          a.list-btn(v-for='node in nodeTypes', v-on:click='node.create()')
+            | {{ node.name }}
+          a.list-btn(disabled) Add new
 
-    .editor-container
-      #rete.node-editor
+          .header Sub Graphs
+          a.list-btn(
+              v-for='graph in subGraphs',
+              v-on:click='graph.switchTo()'
+              :class="{ 'active': graph.id === selectedGraph}")
+            | {{ graph.name }}
+          a.list-btn(v-on:click='createSubGraph()') Add new
+
+          .header Instruments
+          a.list-btn(
+              v-for='instrument in instruments',
+              v-on:click='instrument.switchTo()'
+              :class="{ 'active': instrument.id == selectedGraph}")
+            | {{ instrument.name }}
+          a.list-btn(disabled) Add new
+
+      .editor-container
+        .title-header Main Graph
+
+        #rete.node-editor
 
     script(src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js")
     script(src="https://cdn.jsdelivr.net/npm/rete@1.0.0-alpha.9/build/rete.min.js")
@@ -20,13 +43,78 @@ html
     script(src='/bundle.js')
 
     style.
-      body {
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+
+        background: #122021;
+        color: #dff3f5;
+      }
+
+      .page {
+        display: flex;
+        flex-direction: row;
+
+        height: 100%;
+      }
+
+      .sidebar {
+        width: 400px;
         display: flex;
         flex-direction: column;
       }
 
       .editor-container {
         flex-grow: 1;
+      }
+
+      .title-header {
+        padding: 12px;
+        border-bottom: 2px solid #dff3f5;
+
+        font-size: 22px;
+        font-variant: small-caps;
+      }
+
+      .toolbox {
+        padding: 12px;
+        overflow-y: auto;
+        flex-grow: 1;
+      }
+
+      .toolbox .header {
+        border-bottom: 1px solid #fff;
+        font-variant: small-caps;
+      }
+
+      .toolbox .header:not(:first-child) {
+        border-bottom: 1px solid #fff;
+        margin-top: 12px;
+      }
+
+      .toolbox .list-btn {
+        display: block;
+        //- width: 100%;
+        margin-top: 2px;
+        text-align: left;
+        padding: 6px;
+        cursor: pointer;
+        border-radius: 3px;
+      }
+      .toolbox .list-btn.active {
+        background-color: #173639;
+      }
+      .toolbox .list-btn:hover {
+        text-decoration: underline;
+        background-color: #375c60;
+      }
+
+      .toolbox .list-btn[disabled] {
+        cursor: not-allowed;
+      }
+      .toolbox .list-btn[disabled]:hover {
+        text-decoration: none;
       }
 
       #rete {
@@ -42,12 +130,6 @@ html
 
       .socket.midi {
         background: #b3968a;
-      }
-
-      html, body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
       }
 
       .node {

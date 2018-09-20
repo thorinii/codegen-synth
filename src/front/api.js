@@ -1,9 +1,9 @@
-export function uploadGraph (graph) {
-  return httpPost('/api/graph', graph)
+export function uploadGraph (id, graph) {
+  return httpPost(`/api/graph/${id}`, graph)
 }
 
-export function loadNodeTypes () {
-  return httpGet('/api/nodes')
+export function loadEnvironment () {
+  return httpGet('/api/environment')
 }
 
 async function httpGet (url) {
