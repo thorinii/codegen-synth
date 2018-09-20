@@ -7,7 +7,13 @@ const Nodes = [];
 const sluggify = name => name.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
 const mapObj = (obj, fn) => Object.keys(obj).map(k => fn(k, obj[k]))
 
-
+const toolbarButtons = [];
+new Vue({
+  el: '.toolbar',
+  data: {
+    buttons: toolbarButtons
+  }
+});
 
 async function main () {
   const graphUi = new GraphUi(document.querySelector('#rete'));
@@ -16,11 +22,19 @@ async function main () {
   })
 
   ;(await loadNodes()).forEach(n => Nodes.push(n));
-  graphUi.setAvailableNodeTypes(Nodes);
+  // TODO: load graph on startup
 
   for (const node of Nodes) {
-    graphUi.addNode(node);
+    toolbarButtons.push({
+      title: `Create ${node.name}`,
+      click () {
+        graphUi.addNode(node.name);
+      }
+    })
   }
+
+  graphUi.setAvailableNodeTypes(Nodes);
+  graphUi.addNode('Output');
 }
 
 function loadNodes () {
@@ -116,7 +130,8 @@ class GraphUi {
   }
 
   async addNode (node) {
-    this.editor.addNode(await node.component.createNode());
+    const type = this.types.find(t => t.name === node);
+    this.editor.addNode(await type.component.createNode());
   }
 }
 

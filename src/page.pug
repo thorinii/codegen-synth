@@ -6,6 +6,9 @@ html
   body
     h1 Codegen Synth
 
+    .toolbar
+      button(v-for='button in buttons', v-on:click='button.click()') {{ button.title }}
+
     .editor-container
       #rete.node-editor
 

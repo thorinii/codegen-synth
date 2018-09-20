@@ -47,7 +47,6 @@ async function buildAndStartEngine (model) {
 }
 
 async function compile (model) {
-  console.log('Generating code...');
   model.trimUnusedNodes();
   const schedule = scheduleNodes(model);
   const template = await denodeify(fs.readFile)('templates/main.c', 'utf8');
@@ -63,7 +62,6 @@ async function compile (model) {
   await denodeify(fs.writeFile)(tmpSourceFile, source, 'utf8')
 
   try {
-    console.log('Compiling code...');
     await promisify(execFile)('gcc', [
       '-std=c11',
       '-Wall', '-Werror',
