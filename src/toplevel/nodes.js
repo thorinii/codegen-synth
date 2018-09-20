@@ -1,4 +1,4 @@
-const { mkNodeDefinition } = require('../model');
+const { mkNodeDefinition } = require('../model')
 
 const normalise = definition => {
   return Object.assign({
@@ -7,13 +7,13 @@ const normalise = definition => {
     params: [],
     outputs: [],
     makeDefinition (node) {
-      throw new TypeError('Node Type ' + this.name + ' does not flatten to a definition');
+      throw new TypeError('Node Type ' + this.name + ' does not flatten to a definition')
     }
-  }, definition);
+  }, definition)
 }
 
-const gi = (node, input) => !!node.inputs.get(input) ? node.inputs.get(input) : `%%${input.toLowerCase()}%%`;
-const gir = (node, input) => !!node.inputs.get(input) ? node.inputs.get(input).toFixed(1) : `%%${input.toLowerCase()}%%`;
+const gi = (node, input) => node.inputs.get(input) ? node.inputs.get(input) : `%%${input.toLowerCase()}%%`
+const gir = (node, input) => node.inputs.get(input) ? node.inputs.get(input).toFixed(1) : `%%${input.toLowerCase()}%%`
 
 const list = [
   normalise({
@@ -35,8 +35,8 @@ const list = [
     makeDefinition (node) {
       return mkNodeDefinition({
         out: ['out'],
-        process: `double %%out%% = ${node.params.get('Value')};`,
-      });
+        process: `double %%out%% = ${node.params.get('Value')};`
+      })
     }
   }),
 
@@ -55,8 +55,8 @@ const list = [
         out: ['out'],
         storage: 'int %%id%%_tick;',
         init: '%%id%%_tick = 0;',
-        process: `%%id%%_tick++;\ndouble %%out%% = sin(%%id%%_tick / ${gir(node, 'Period')}) * 0.04f;`,
-      });
+        process: `%%id%%_tick++;\ndouble %%out%% = sin(%%id%%_tick / ${gir(node, 'Period')}) * 0.04f;`
+      })
     }
   }),
 
@@ -74,8 +74,8 @@ const list = [
       return mkNodeDefinition({
         in: ['a', 'b'],
         out: ['out'],
-        process: `double %%out%% = ${gir(node, 'A')} * ${gir(node, 'B')};`,
-      });
+        process: `double %%out%% = ${gir(node, 'A')} * ${gir(node, 'B')};`
+      })
     }
   }),
 
@@ -93,8 +93,8 @@ const list = [
       return mkNodeDefinition({
         in: ['a', 'b'],
         out: ['out'],
-        process: `double %%out%% = ${gir(node, 'A')} + ${gir(node, 'B')};`,
-      });
+        process: `double %%out%% = ${gir(node, 'A')} + ${gir(node, 'B')};`
+      })
     }
   }),
 
@@ -118,17 +118,17 @@ const list = [
         init: '%%id%%_tick = 0;',
         process: 'double %%out%% = %%id%%_buffer[%%id%%_tick];',
         processEpilogue: `%%id%%_buffer[%%id%%_tick] = %%in%%;\n%%id%%_tick = (%%id%%_tick + 1) % ${node.params.get('Delay')};`,
-        isDirect: false,
-      });
+        isDirect: false
+      })
     }
   })
-];
+]
 
-module.exports.list = list;
+module.exports.list = list
 
-const lookupTable = new Map();
+const lookupTable = new Map()
 list.forEach(type => {
-  lookupTable.set(type.name, type);
+  lookupTable.set(type.name, type)
 })
 
-module.exports.lookup = name => lookupTable.get(name);
+module.exports.lookup = name => lookupTable.get(name)

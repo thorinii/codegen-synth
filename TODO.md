@@ -1,6 +1,5 @@
 # TODO
 
-* Rollup
 * Serialisation
 * Noise node
 * Linear automatic envelope node
