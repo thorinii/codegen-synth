@@ -12,8 +12,8 @@ const normalise = definition => {
   }, definition)
 }
 
-const gi = (node, input) => node.inputs.get(input) ? node.inputs.get(input) : `%%${input.toLowerCase()}%%`
-const gir = (node, input) => node.inputs.get(input) ? node.inputs.get(input).toFixed(1) : `%%${input.toLowerCase()}%%`
+const gi = (node, input) => false ? node.inputs.get(input) : `%%${input.toLowerCase()}%%`
+const gir = (node, input) => false ? node.inputs.get(input).toFixed(1) : `%%${input.toLowerCase()}%%`
 
 const list = [
   normalise({

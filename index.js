@@ -57,12 +57,8 @@ class Api {
     })
 
     app.post('/api/graph/:id', (req, res) => {
-      if (!Array.isArray(req.body)) {
-        res.status(500).json({ message: 'Invalid payload: not a graph' })
-      } else {
-        this._onUpdate(req.params.id, req.body)
-        res.json({})
-      }
+      this._onUpdate(req.params.id, req.body)
+      res.json({})
     })
 
     app.use(express.static(path.join(__dirname, 'build')))
@@ -115,7 +111,7 @@ class Backend {
 const backend = new Backend()
 const api = new Api()
 api.setOnUpdate((id, graph) => {
-  environment.graphs[id].nodes = graph
+  environment.graphs[id] = graph
   backend.push(graph)
     .then(null, e => console.error('Crash in backend', e))
 })
@@ -125,50 +121,46 @@ function lowerGraph (graph) {
   const model = new Model()
   const nodes = new Map()
 
-  let outputNode
+  let outputNode = null
 
-  graph.forEach(node => {
+  graph.nodes.forEach(node => {
     if (node.type === 'Output') {
-      outputNode = node
+      outputNode = node.id
       return
     }
 
     nodes.set(node.id, createModelNode(model, node))
   })
 
-  if (!outputNode) throw new Error('Graph does not have an output')
-  graph.forEach(n => connectBackward(model, n))
+  if (outputNode === null) throw new Error('Graph does not have an output')
+  graph.edges.forEach(e => connect(model, e))
 
   return model
 
   function createModelNode (model, node) {
     const type = Nodes.lookup(node.type)
     const nodeConfig = {
-      inputs: new Map(node.inputs.map(i => [i.name, i.value])),
       params: new Map(node.params.map(p => [p.name, p.value]))
     }
     const definition = type.makeDefinition(nodeConfig)
     return model.addNode(definition, {})
   }
 
-  function connectBackward (model, highNode) {
-    highNode.inputs.forEach(input => {
-      if (input.from === null) return
+  function connect (model, edge) {
+    let toPort
+    if (edge.to[0] === outputNode) {
+      toPort = model.out
+    } else {
+      const toNode = nodes.get(edge.to[0])
+      toPort = toNode[edge.to[1].toLowerCase()]
+    }
 
-      let toPort
-      if (highNode.type === 'Output') {
-        toPort = model.out
-      } else {
-        const lowNode = nodes.get(highNode.id)
-        toPort = lowNode[input.name.toLowerCase()]
-      }
-
-      const fromNode = nodes.get(input.from[0])
-      if (!fromNode) throw new Error('Invalid input node: ' + JSON.stringify(input))
-      const fromPort = fromNode[input.from[1]]
-      if (!(fromPort >= 0)) throw new Error('Invalid input node port: ' + JSON.stringify(input))
-
+    if (Array.isArray(edge.from)) {
+      const fromNode = nodes.get(edge.from[0])
+      const fromPort = fromNode[edge.from[1].toLowerCase()]
       model.connect(fromPort, toPort)
-    })
+    } else {
+      model.connect(model.addConstant(edge.from), toPort)
+    }
   }
 }

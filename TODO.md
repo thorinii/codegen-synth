@@ -17,8 +17,13 @@
 * JS node
 * MIDI Note node
 * Cheap MIDI note on/off node
+* Oversample by graph (then intelligently partition the graph for optimality)
 * Maths node
 * Groups
+* Perf Bulkhead nodes
+    - When the input to the node drops below a threshold for a time, it stops
+      executing the upstream graph, until woken by a message (or other things?).
+* Automatic graph partitioning for multicore
 * Compiler graph visualisations
     * Original graph
     * Flattened graph

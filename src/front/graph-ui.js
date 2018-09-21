@@ -21,39 +21,44 @@ export class GraphUi {
     editor.use(ConnectionPlugin)
     editor.use(AlightRenderPlugin)
 
-    editor.on('process nodecreated noderemoved connectioncreated connectionremoved', () => {
+    editor.on('process nodecreated noderemoved connectioncreated connectionremoved nodetranslated', () => {
       const rawGraph = editor.toJSON()
 
-      const graph = mapObj(rawGraph.nodes, (_, node) => {
+      const nodes = []
+      const edges = []
+
+      mapObj(rawGraph.nodes, (_, node) => {
         const nodeType = this.types.find(n => n.name === node.name)
 
-        return {
+        nodes.push({
           id: node.id,
           type: node.name,
-
-          inputs: nodeType.inputs.map(input => {
-            const socket = node.inputs[sluggify(input.name)]
-            if (socket.connections.length === 0) {
-              return {
-                name: input.name,
-                value: node.data[sluggify(input.name)],
-                from: null
-              }
-            } else {
-              return {
-                name: input.name,
-                value: null,
-                from: [socket.connections[0].node, socket.connections[0].output]
-              }
-            }
-          }),
 
           params: nodeType.params.map(param => {
             const value = node.data[sluggify(param.name)]
             return { name: param.name, value }
           })
-        }
+        })
+
+        nodeType.inputs.forEach(input => {
+          const socket = node.inputs[sluggify(input.name)]
+          if (socket.connections.length === 0) {
+            edges.push({
+              from: node.data[sluggify(input.name)],
+              to: [node.id, input.name]
+            })
+          } else {
+            edges.push({
+              from: [socket.connections[0].node, socket.connections[0].output],
+              to: [node.id, input.name]
+            })
+          }
+        })
       })
+
+      const graph = {
+        nodes, edges
+      }
 
       this._onChange(graph)
     })
