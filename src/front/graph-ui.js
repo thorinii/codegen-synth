@@ -154,8 +154,9 @@ class NumControl extends Rete.Control {
   constructor (id, name, emitter) {
     super()
     this.id = id
+    this.key = id
     this.emitter = emitter
-    this.template = `<div class="input-title">${name}</div><input style="width: 40px" type="number" title="${name}" :value="value" @input="change($event)" />`
+    this.template = `<div class="input-title">${name}</div><input style="width: 80px" type="number" title="${name}" :value="value" @input="change($event)" />`
 
     this.scope = {
       value: 0,

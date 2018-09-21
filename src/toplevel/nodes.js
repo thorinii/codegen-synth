@@ -121,6 +121,98 @@ const list = [
         isDirect: false
       })
     }
+  }),
+
+  normalise({
+    name: 'BiQuad Lowpass',
+    inputs: [
+      { type: 'real', name: 'In' }
+    ],
+    params: [
+      { type: 'real', name: 'F' },
+      { type: 'real', name: 'Q' }
+    ],
+    outputs: [
+      { type: 'real', name: 'Out' }
+    ],
+
+    makeDefinition (node) {
+      const Fs = 14400 * 4
+      const f0 = node.params.get('F') || 0
+      const Q = node.params.get('Q') || 0
+
+      const w0 = 2 * Math.PI * f0 / Fs
+      const alpha = Math.sin(w0) / (2 * Q)
+
+      const b0 = (1 - Math.cos(w0)) / 2
+      const b1 = 1 - Math.cos(w0)
+      const b2 = (1 - Math.cos(w0)) / 2
+      const a0 = 1 + alpha
+      const a1 = -2 * Math.cos(w0)
+      const a2 = 1 - alpha
+
+      return mkNodeDefinition({
+        in: ['in'],
+        out: ['out'],
+        storage: `static double %%id%%_x[2];\n` +
+                 `static double %%id%%_y[2];`,
+        process: `double %%out%% = (${b0}/${a0}) * %%in%%` +
+                               ` + (${b1}/${a0}) * %%id%%_x[1]` +
+                               ` + (${b2}/${a0}) * %%id%%_x[0]` +
+                               ` - (${a1}/${a0}) * %%id%%_y[1]` +
+                               ` - (${a2}/${a0}) * %%id%%_y[0];`,
+        processEpilogue: `%%id%%_x[0] = %%id%%_x[1];\n;` +
+                         `%%id%%_x[1] = %%in%%;\n;` +
+                         `%%id%%_y[0] = %%id%%_y[1];\n;` +
+                         `%%id%%_y[1] = %%out%%;\n;`
+      })
+    }
+  }),
+
+  normalise({
+    name: 'BiQuad Hipass',
+    inputs: [
+      { type: 'real', name: 'In' }
+    ],
+    params: [
+      { type: 'real', name: 'F' },
+      { type: 'real', name: 'Q' }
+    ],
+    outputs: [
+      { type: 'real', name: 'Out' }
+    ],
+
+    makeDefinition (node) {
+      const Fs = 14400 * 4
+      const f0 = node.params.get('F') || 0
+      const Q = node.params.get('Q') || 0
+
+      const w0 = 2 * Math.PI * f0 / Fs
+      const alpha = Math.sin(w0) / (2 * Q)
+
+      const b0 = (1 + Math.cos(w0)) / 2
+      const b1 = -(1 + Math.cos(w0))
+      const b2 = (1 + Math.cos(w0)) / 2
+      const a0 = 1 + alpha
+      const a1 = -2 * Math.cos(w0)
+      const a2 = 1 - alpha
+
+      return mkNodeDefinition({
+        in: ['in'],
+        out: ['out'],
+        storage: `static double %%id%%_x[2];\n` +
+                 `static double %%id%%_y[2];`,
+        process: `double %%out%% = (${b0}/${a0}) * %%in%%` +
+                               ` + (${b1}/${a0}) * %%id%%_x[1]` +
+                               ` + (${b2}/${a0}) * %%id%%_x[0]` +
+                               ` - (${a1}/${a0}) * %%id%%_y[1]` +
+                               ` - (${a2}/${a0}) * %%id%%_y[0];`,
+        processEpilogue: `%%id%%_x[0] = %%id%%_x[1];\n;` +
+                         `%%id%%_x[1] = %%in%%;\n;` +
+                         `%%id%%_y[0] = %%id%%_y[1];\n;` +
+                         `%%id%%_y[1] = %%out%%;\n;`
+      })
+    }
   })
 ]
 

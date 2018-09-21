@@ -1,17 +1,25 @@
 # TODO
 
+* Next aim: build a loop activated by MIDI note
+    - MIDI node
+    - JS node
+    - Noise node
+    - JS processing
+    - Realtime vars
+    - Compiler revamp
+    - Runtime revamp
+
 * Compiler revamp
     * Pipeline that works on graphs:
       abstract graph -> scalarised -> flattened -> partitioned -> scheduled -> C code
                                                                -> controller
-* Private data structures in frontend (eg for connections, JS node contents, etc)
-- Default graphs (eg Output node for Instrument)
-* Noise node
-* Linear automatic envelope node
-* Low pass node
-* MIDI CC node
 * JS node
 * MIDI Note node
+* Linear automatic envelope node
+* Noise node
+* Private data structures in frontend (eg for connections, JS node contents, etc)
+- Default graphs (eg Output node for Instrument)
+* MIDI CC node
 * Cheap MIDI note on/off node
 * Oversample by graph (then intelligently partition the graph for optimality)
 * Maths node
