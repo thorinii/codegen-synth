@@ -1,6 +1,8 @@
 const express = require('express')
+const fs = require('fs')
 const path = require('path')
 const shortid = require('shortid')
+const { promisify } = require('util')
 
 const Nodes = require('./src/toplevel/nodes')
 
@@ -12,7 +14,8 @@ function createGraph (env, name) {
   env.graphs[id] = {
     id,
     name,
-    nodes: []
+    nodes: [],
+    edges: []
   }
   return id
 }
@@ -34,8 +37,6 @@ const environment = {
   graphs: {},
   activeInstrument: null
 }
-
-createInstrument(environment, 'Default')
 
 class Api {
   constructor () {
@@ -108,14 +109,29 @@ class Backend {
   }
 }
 
-const backend = new Backend()
-const api = new Api()
-api.setOnUpdate((id, graph) => {
-  environment.graphs[id] = graph
-  backend.push(graph)
-    .then(null, e => console.error('Crash in backend', e))
-})
-api.start()
+async function main () {
+  const savedEnv = await loadEnvironment()
+  if (savedEnv) {
+    Object.assign(environment, savedEnv, {
+      nodes: Nodes.list
+    })
+  } else {
+    createInstrument(environment, 'Default')
+  }
+
+  const backend = new Backend()
+  const api = new Api()
+  api.setOnUpdate((id, graph) => {
+    Object.assign(environment.graphs[id], graph)
+    backend.push(graph)
+      .then(null, e => console.error('Crash in backend', e))
+    saveEnvironment(environment)
+      .then(null, e => console.warn('Failed to save graph', e))
+  })
+  api.start()
+}
+main()
+  .then(null, e => console.error('Crash in main', e))
 
 function lowerGraph (graph) {
   const model = new Model()
@@ -163,4 +179,20 @@ function lowerGraph (graph) {
       model.connect(model.addConstant(edge.from), toPort)
     }
   }
+}
+
+async function loadEnvironment () {
+  try {
+    const content = await promisify(fs.readFile)(path.join(__dirname, 'save.json'))
+    return JSON.parse(content)
+  } catch (e) {
+    console.error(e)
+    return null
+  }
+}
+
+async function saveEnvironment (env) {
+  const json = JSON.stringify(env)
+
+  return promisify(fs.writeFile)(path.join(__dirname, 'save.json'), json)
 }

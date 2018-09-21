@@ -22,6 +22,7 @@ new Vue({
 async function main () {
   const graphUi = new GraphUi(document.querySelector('#rete'))
   graphUi.setOnChange(async graph => {
+    if (!viewState.selectedGraph) return
     await Api.uploadGraph(viewState.selectedGraph, graph)
   })
 
@@ -58,9 +59,9 @@ async function main () {
   // note: these are not equivalent. This just defaults the currently edited
   // graph to the active instrument
   viewState.selectedGraph = env.activeInstrument
-  console.log(env)
-
-  graphUi.addNode('Output')
+  if (viewState.selectedGraph !== null) {
+    await graphUi.showGraph(env.graphs[viewState.selectedGraph])
+  }
 }
 
 main()

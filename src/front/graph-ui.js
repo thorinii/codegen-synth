@@ -33,6 +33,7 @@ export class GraphUi {
         nodes.push({
           id: node.id,
           type: node.name,
+          position: node.position,
 
           params: nodeType.params.map(param => {
             const value = node.data[sluggify(param.name)]
@@ -45,12 +46,12 @@ export class GraphUi {
           if (socket.connections.length === 0) {
             edges.push({
               from: node.data[sluggify(input.name)],
-              to: [node.id, input.name]
+              to: [node.id, sluggify(input.name)]
             })
           } else {
             edges.push({
-              from: [socket.connections[0].node, socket.connections[0].output],
-              to: [node.id, input.name]
+              from: [socket.connections[0].node, sluggify(socket.connections[0].output)],
+              to: [node.id, sluggify(input.name)]
             })
           }
         })
@@ -74,6 +75,48 @@ export class GraphUi {
       const component = new GenericComponent(n)
       n.component = component
       this.editor.register(component)
+    })
+  }
+
+  async showGraph (graph) {
+    const nodesById = new Map()
+    const inputs = new Map()
+    const outputs = new Map()
+    const nodes = await Promise.all(graph.nodes.map(async n => {
+      const type = this.types.find(t => t.name === n.type)
+      const node = await type.component.createNode()
+
+      nodesById.set(n.id, node)
+      n.params.forEach(p => {
+        node.data[sluggify(p.name)] = p.value
+      })
+
+      if (n.position) {
+        node.position = n.position
+      }
+
+      Array.from(node.inputs.values()).forEach(i => inputs.set(n.id + '-' + sluggify(i.name), i))
+      Array.from(node.outputs.values()).forEach(o => outputs.set(n.id + '-' + sluggify(o.name), o))
+
+      graph.edges.forEach(e => {
+        if (e.to[0] !== n.id) return
+        if (Array.isArray(e.from)) return
+
+        node.data[sluggify(e.to[1])] = e.from
+      })
+
+      return node
+    }))
+
+    this.editor.clear()
+    nodes.forEach(n => this.editor.addNode(n))
+
+    graph.edges.forEach(e => {
+      if (!Array.isArray(e.from)) return
+
+      const from = outputs.get(e.from[0] + '-' + sluggify(e.from[1]))
+      const to = inputs.get(e.to[0] + '-' + sluggify(e.to[1]))
+      this.editor.connect(from, to)
     })
   }
 
