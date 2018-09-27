@@ -13,12 +13,14 @@ const MARK_REALTIME = 'realtime'
 async function compile (graph) {
   const [jsGraph, realtimeGraph] = partition(graph)
 
-  // dead node pass
+  // TODO: dead node pass
   console.log(prettyI(jsGraph))
   console.log(prettyI(realtimeGraph))
 
   const realtimeModel = createRealtimeModel(realtimeGraph)
   const realtimeExe = await ModelCompiler.compile(realtimeModel)
+
+  // TODO: convert jsGraph into a fully specified data structure (not a Graph.Graph)
 
   return {
     realtimeExe
@@ -53,12 +55,14 @@ function partition (graph) {
 
   let varCounter = 0
   return Graph.partition(graph, [MARK_JS, MARK_REALTIME], isRight => {
+    if (!isRight) throw new Error('Does not support realtime -> JS connections')
+
     const varId = varCounter++
     return {
       leftNode: Graph.Node({ type: 'Var', params: Map({ id: varId }) }),
       leftEdgeTarget: 'value',
       rightNode: Graph.Node({ type: 'Var', params: Map({ id: varId }) }),
-      rightEdgeTarget: 'value'
+      rightEdgeTarget: 'out'
     }
   })
 }
@@ -74,7 +78,7 @@ function createRealtimeModel (graph) {
       return
     }
 
-    nodes = nodes.set(id, createModelNode(model, node))
+    nodes = nodes.set(id, createModelNode(model, id, node))
   })
 
   if (outputNode === null) throw new Error('Graph does not have an output')
@@ -82,13 +86,17 @@ function createRealtimeModel (graph) {
 
   return model
 
-  function createModelNode (model, node) {
-    const type = Nodes.lookup(node.type)
-    const nodeConfig = {
-      params: node.params
+  function createModelNode (model, id, node) {
+    if (node.type === 'Var') {
+      return model.addVariable(id, 0)
+    } else {
+      const type = Nodes.lookup(node.type)
+      const nodeConfig = {
+        params: node.params
+      }
+      const definition = type.makeDefinition(nodeConfig)
+      return model.addNode(definition, {})
     }
-    const definition = type.makeDefinition(nodeConfig)
-    return model.addNode(definition, {})
   }
 
   function connect (model, edge) {

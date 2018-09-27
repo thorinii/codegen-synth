@@ -114,9 +114,9 @@ function generateEngineSource (template, model, schedule) {
   sections.process += '\n' + sections.processEpilogue
   sections.process += '\n' + processEpilogue
 
-  // console.log(`storage:\n${sections.storage}\n`.replace(/\n/g, '\n  '));
-  // console.log(`init:\n${sections.init}\n`.replace(/\n/g, '\n  '));
-  // console.log(`process:\n${sections.process}\n`.replace(/\n/g, '\n  '));
+  // console.log(`storage:\n${sections.storage}\n`.replace(/\n/g, '\n  '))
+  // console.log(`init:\n${sections.init}\n`.replace(/\n/g, '\n  '))
+  // console.log(`process:\n${sections.process}\n`.replace(/\n/g, '\n  '))
 
   return formatBlocks(template, sections)
 }
