@@ -97,8 +97,8 @@ class Backend {
   }
 
   async compile (graph) {
-    const model = lowerGraph(graph)
-    return compile(model)
+    const result = await compiler.compile(mkGraph(graph))
+    return result.realtimeExe
   }
 
   async swapEngine (compiled) {
@@ -138,56 +138,6 @@ async function main () {
 }
 main()
   .then(null, e => console.error('Crash in main', e))
-
-function lowerGraph (graph) {
-  compiler.compile(mkGraph(graph))
-
-  const model = new Model()
-  const nodes = new Map()
-
-  let outputNode = null
-
-  graph.nodes.forEach(node => {
-    if (node.type === 'Output') {
-      outputNode = node.id
-      return
-    }
-
-    nodes.set(node.id, createModelNode(model, node))
-  })
-
-  if (outputNode === null) throw new Error('Graph does not have an output')
-  graph.edges.forEach(e => connect(model, e))
-
-  return model
-
-  function createModelNode (model, node) {
-    const type = Nodes.lookup(node.type)
-    const nodeConfig = {
-      params: new Map(node.params.map(p => [p.name, p.value]))
-    }
-    const definition = type.makeDefinition(nodeConfig)
-    return model.addNode(definition, {})
-  }
-
-  function connect (model, edge) {
-    let toPort
-    if (edge.to[0] === outputNode) {
-      toPort = model.out
-    } else {
-      const toNode = nodes.get(edge.to[0])
-      toPort = toNode[edge.to[1].toLowerCase()]
-    }
-
-    if (Array.isArray(edge.from)) {
-      const fromNode = nodes.get(edge.from[0])
-      const fromPort = fromNode[edge.from[1].toLowerCase()]
-      model.connect(fromPort, toPort)
-    } else {
-      model.connect(model.addConstant(edge.from), toPort)
-    }
-  }
-}
 
 async function loadEnvironment () {
   try {

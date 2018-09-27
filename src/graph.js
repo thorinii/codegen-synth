@@ -26,14 +26,15 @@ function mkGraph (graph) {
     })
   }
   const mkEdge = edge => {
+    const sanitisePointer = p => List.of('' + p[0], p[1])
     return Edge({
-      from: Array.isArray(edge.from) ? List(edge.from) : edge.from,
-      to: List(edge.to)
+      from: Array.isArray(edge.from) ? sanitisePointer(edge.from) : edge.from,
+      to: sanitisePointer(edge.to)
     })
   }
 
   const nodes = Map(graph.nodes.map(n => {
-    return [n.id, mkNode(n)]
+    return ['' + n.id, mkNode(n)]
   }))
   const edges = Set(graph.edges.map(mkEdge))
   return Graph({
