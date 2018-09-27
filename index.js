@@ -8,6 +8,8 @@ const Nodes = require('./src/toplevel/nodes')
 
 const { Model } = require('./src/model')
 const { compile, startEngine } = require('./src/engine')
+const compiler = require('./src/compiler')
+const { mkGraph } = require('./src/graph')
 
 function createGraph (env, name) {
   const id = shortid.generate()
@@ -105,7 +107,9 @@ class Backend {
       await this._engine.waitForExit()
     }
 
-    this._engine = startEngine(compiled)
+    if (false) {
+      this._engine = startEngine(compiled)
+    }
   }
 }
 
@@ -129,11 +133,15 @@ async function main () {
       .then(null, e => console.warn('Failed to save graph', e))
   })
   api.start()
+
+  backend.push(environment.graphs[environment.activeInstrument])
 }
 main()
   .then(null, e => console.error('Crash in main', e))
 
 function lowerGraph (graph) {
+  compiler.compile(mkGraph(graph))
+
   const model = new Model()
   const nodes = new Map()
 
