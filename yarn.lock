@@ -1375,6 +1375,11 @@ media-typer@0.3.0:
   resolved "https://registry.yarnpkg.com/media-typer/-/media-typer-0.3.0.tgz#8710d7af0aa626f8fffa1ce00168545263255748"
   integrity sha1-hxDXrwqmJvj/+hzgAWhUUmMlV0g=
 
+medium@^1.0.2:
+  version "1.0.2"
+  resolved "https://registry.yarnpkg.com/medium/-/medium-1.0.2.tgz#47bff95ef17913cc0e4a434862171944bbf46818"
+  integrity sha512-QgPG/wAKErFC19cAlQPE72xyJ+nFGbmBabubWCUbf9UXRF8MPVJO9BLU8x0rR+YTsxspSsnOY6lMvYyHd7f7XQ==
+
 memorystream@^0.3.1:
   version "0.3.1"
   resolved "https://registry.yarnpkg.com/memorystream/-/memorystream-0.3.1.tgz#86d7090b30ce455d63fbae12dda51a47ddcaf9b2"

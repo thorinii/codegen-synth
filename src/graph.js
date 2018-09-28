@@ -189,5 +189,7 @@ module.exports = {
 
   Graph,
   Node,
-  Edge
+  Edge,
+
+  hasFrom
 }

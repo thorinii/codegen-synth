@@ -98,7 +98,7 @@ class Backend {
 
   async compile (graph) {
     const result = await compiler.compile(mkGraph(graph))
-    return result.realtimeExe
+    return result
   }
 
   async swapEngine (compiled) {
@@ -107,7 +107,7 @@ class Backend {
       await this._engine.waitForExit()
     }
 
-    if (false) {
+    if (true) {
       this._engine = startEngine(compiled)
     }
   }

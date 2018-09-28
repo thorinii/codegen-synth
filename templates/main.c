@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
@@ -9,11 +10,14 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 
+
+static bool going = false;
 jack_port_t *input_midi_port;
 jack_port_t *output_port;
 jack_client_t *client;
 
 int VAR_COUNT; double vars[0]; /* %%STORAGE%% */
+
 
 static double make_sample() {
   /* %%PROCESS%% */
@@ -51,11 +55,17 @@ int process (jack_nframes_t nframes, void *arg) {
   }
 
   jack_default_audio_sample_t *out = (jack_default_audio_sample_t *) jack_port_get_buffer(output_port, nframes);
-  for (int i = 0; i < nframes; i++) {
-    make_sample();
-    make_sample();
-    make_sample();
-    out[i] = make_sample();
+  if (going) {
+    for (int i = 0; i < nframes; i++) {
+      make_sample();
+      make_sample();
+      make_sample();
+      out[i] = make_sample();
+    }
+  } else {
+    for (int i = 0; i < nframes; i++) {
+      out[i] = 0.0;
+    }
   }
   return 0;
 }
@@ -115,8 +125,6 @@ int main (int argc, char *argv[]) {
   jack_set_process_callback(client, process, 0);
   jack_on_shutdown(client, jack_shutdown, 0);
 
-  printf("{\"msg\":\"start\",\"sample_rate\":%d}\n", jack_get_sample_rate(client));
-
   output_port = jack_port_register(client, "output", JACK_DEFAULT_AUDIO_TYPE, JackPortIsOutput, 0);
   if (output_port == NULL) {
     printf("Failed to open an output port\n");
@@ -153,6 +161,8 @@ int main (int argc, char *argv[]) {
     i++;
   }
   free(ports);
+
+  printf("{\"msg\":\"start\",\"sample_rate\":%d}\n", jack_get_sample_rate(client));
 
   /* keep running until stopped by the user */
   sleep (-1);

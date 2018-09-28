@@ -2,7 +2,6 @@ import Rete from 'rete'
 import AlightRenderPlugin from 'rete-alight-render-plugin'
 import ConnectionPlugin from 'rete-connection-plugin'
 
-const sluggify = name => name.toLowerCase().replace(/[^a-z0-9_]+/g, '_')
 const mapObj = (obj, fn) => Object.keys(obj).map(k => fn(k, obj[k]))
 
 const SocketTypes = {
@@ -36,22 +35,22 @@ export class GraphUi {
           position: node.position,
 
           params: nodeType.params.map(param => {
-            const value = node.data[sluggify(param.name)]
+            const value = node.data[param.name]
             return { name: param.name, value }
           })
         })
 
         nodeType.inputs.forEach(input => {
-          const socket = node.inputs[sluggify(input.name)]
+          const socket = node.inputs[input.name]
           if (socket.connections.length === 0) {
             edges.push({
-              from: node.data[sluggify(input.name)],
-              to: [node.id, sluggify(input.name)]
+              from: node.data[input.name],
+              to: [node.id, input.name]
             })
           } else {
             edges.push({
-              from: [socket.connections[0].node, sluggify(socket.connections[0].output)],
-              to: [node.id, sluggify(input.name)]
+              from: [socket.connections[0].node, socket.connections[0].output],
+              to: [node.id, input.name]
             })
           }
         })
@@ -88,21 +87,21 @@ export class GraphUi {
 
       nodesById.set(n.id, node)
       n.params.forEach(p => {
-        node.data[sluggify(p.name)] = p.value
+        node.data[p.name] = p.value
       })
 
       if (n.position) {
         node.position = n.position
       }
 
-      Array.from(node.inputs.values()).forEach(i => inputs.set(n.id + '-' + sluggify(i.name), i))
-      Array.from(node.outputs.values()).forEach(o => outputs.set(n.id + '-' + sluggify(o.name), o))
+      Array.from(node.inputs.values()).forEach(i => inputs.set(n.id + '-' + i.name, i))
+      Array.from(node.outputs.values()).forEach(o => outputs.set(n.id + '-' + o.name, o))
 
       graph.edges.forEach(e => {
         if (e.to[0] !== n.id) return
         if (Array.isArray(e.from)) return
 
-        node.data[sluggify(e.to[1])] = e.from
+        node.data[e.to[1]] = e.from
       })
 
       return node
@@ -114,8 +113,8 @@ export class GraphUi {
     graph.edges.forEach(e => {
       if (!Array.isArray(e.from)) return
 
-      const from = outputs.get(e.from[0] + '-' + sluggify(e.from[1]))
-      const to = inputs.get(e.to[0] + '-' + sluggify(e.to[1]))
+      const from = outputs.get(e.from[0] + '-' + e.from[1])
+      const to = inputs.get(e.to[0] + '-' + e.to[1])
       this.editor.connect(from, to)
     })
   }
@@ -134,15 +133,15 @@ class GenericComponent extends Rete.Component {
 
   builder (node) {
     this._definition.inputs.forEach(input => {
-      let c = new Rete.Input(sluggify(input.name), input.name, SocketTypes[input.type])
-      c.addControl(new NumControl(sluggify(input.name), input.name, this.editor))
+      let c = new Rete.Input(input.name, input.name, SocketTypes[input.type])
+      c.addControl(new NumControl(input.name, input.name, this.editor))
       node.addInput(c)
     })
     this._definition.params.forEach(param => {
-      node.addControl(new NumControl(sluggify(param.name), param.name, this.editor))
+      node.addControl(new NumControl(param.name, param.name, this.editor))
     })
     this._definition.outputs.forEach(output => {
-      let c = new Rete.Output(sluggify(output.name), output.name, SocketTypes[output.type])
+      let c = new Rete.Output(output.name, output.name, SocketTypes[output.type])
       node.addOutput(c)
     })
   }

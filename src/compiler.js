@@ -1,4 +1,4 @@
-const { Map, List, Set } = require('immutable')
+const { Map, List, Set, Record } = require('immutable')
 
 const Graph = require('./graph')
 const prettyI = require('pretty-immutable')
@@ -14,26 +14,28 @@ async function compile (graph) {
   const [jsGraph, realtimeGraph] = partition(graph)
 
   // TODO: dead node pass
-  console.log(prettyI(jsGraph))
-  console.log(prettyI(realtimeGraph))
+  // console.log(prettyI(jsGraph))
+  // console.log(prettyI(realtimeGraph))
 
   const realtimeModel = createRealtimeModel(realtimeGraph)
   const realtimeExe = await ModelCompiler.compile(realtimeModel)
 
   // TODO: convert jsGraph into a fully specified data structure (not a Graph.Graph)
+  const controllerModel = createControllerModel(jsGraph)
 
   return {
-    realtimeExe
+    controller: controllerModel,
+    realtime: realtimeExe
   }
 }
 
 function partition (graph) {
   const realtimeNodes = new Set([
-    'Output',
-    'Sine Wave',
-    'Delay',
-    'BiQuad Lowpass',
-    'BiQuad Hipass'
+    'output',
+    'sine_generator',
+    'delay',
+    'biquad_lowpass',
+    'biquad_hipass'
   ])
   const jsNodes = new Set([])
 
@@ -57,11 +59,11 @@ function partition (graph) {
   return Graph.partition(graph, [MARK_JS, MARK_REALTIME], isRight => {
     if (!isRight) throw new Error('Does not support realtime -> JS connections')
 
-    const varId = varCounter++
+    const varId = '' + (varCounter++)
     return {
-      leftNode: Graph.Node({ type: 'Var', params: Map({ id: varId }) }),
+      leftNode: Graph.Node({ type: 'var', params: Map({ id: varId }) }),
       leftEdgeTarget: 'value',
-      rightNode: Graph.Node({ type: 'Var', params: Map({ id: varId }) }),
+      rightNode: Graph.Node({ type: 'var', params: Map({ id: varId }) }),
       rightEdgeTarget: 'out'
     }
   })
@@ -73,12 +75,12 @@ function createRealtimeModel (graph) {
   let outputNode = null
   let nodes = new Map()
   graph.nodes.entrySeq().forEach(([id, node]) => {
-    if (node.type === 'Output') {
+    if (node.type === 'output') {
       outputNode = id
       return
     }
 
-    nodes = nodes.set(id, createModelNode(model, id, node))
+    nodes = nodes.set(id, createModelNode(model, node))
   })
 
   if (outputNode === null) throw new Error('Graph does not have an output')
@@ -86,9 +88,9 @@ function createRealtimeModel (graph) {
 
   return model
 
-  function createModelNode (model, id, node) {
-    if (node.type === 'Var') {
-      return model.addVariable(id, 0)
+  function createModelNode (model, node) {
+    if (node.type === 'var') {
+      return model.addVariable(node.params.get('id'), 0)
     } else {
       const type = Nodes.lookup(node.type)
       const nodeConfig = {
@@ -105,16 +107,66 @@ function createRealtimeModel (graph) {
       toPort = model.out
     } else {
       const toNode = nodes.get(edge.to.get(0))
-      toPort = toNode[edge.to.get(1).toLowerCase()]
+      toPort = toNode[edge.to.get(1)]
     }
 
     if (List.isList(edge.from)) {
       const fromNode = nodes.get(edge.from.get(0))
-      const fromPort = fromNode[edge.from.get(1).toLowerCase()]
+      const fromPort = fromNode[edge.from.get(1)]
       model.connect(fromPort, toPort)
     } else {
       model.connect(model.addConstant(edge.from), toPort)
     }
+  }
+}
+
+function createControllerModel (graph) {
+  const ControllerNode = Record({
+    id: null,
+    type: null,
+    params: Map(),
+    outputs: Map()
+  }, 'Node')
+  const ControllerEdge = Record({
+    node: null,
+    target: null
+  }, 'Edge')
+
+  let nodesById = Map()
+  let generatedNodeCounter = 0
+
+  graph.nodes.entrySeq().forEach(([id, node]) => {
+    nodesById = nodesById.set(id, ControllerNode({
+      id,
+      type: node.type,
+      params: node.params
+    }))
+  })
+
+  graph.edges.forEach(edge => {
+    if (Graph.hasFrom(edge)) {
+      nodesById = nodesById.update(edge.from.get(0), n => {
+        return n.update('outputs', o => o.set(edge.from.get(1), ControllerEdge({
+          node: edge.to.get(0),
+          target: edge.to.get(1)
+        })))
+      })
+    } else {
+      const generatedId = '$' + generatedNodeCounter++
+      nodesById = nodesById.set(generatedId, ControllerNode({
+        id: generatedId,
+        type: 'constant',
+        params: Map.of('value', edge.from),
+        outputs: Map.of('value', ControllerEdge({
+          node: edge.to.get(0),
+          target: edge.to.get(1)
+        }))
+      }))
+    }
+  })
+
+  return {
+    nodes: nodesById.toList()
   }
 }
 

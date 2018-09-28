@@ -12,41 +12,41 @@ const normalise = definition => {
   }, definition)
 }
 
-const gi = (node, input) => false ? node.inputs.get(input) : `%%${input.toLowerCase()}%%`
-const gir = (node, input) => false ? node.inputs.get(input).toFixed(1) : `%%${input.toLowerCase()}%%`
+const gi = (node, input) => false ? node.inputs.get(input) : `%%${input}%%`
+const gir = (node, input) => false ? node.inputs.get(input).toFixed(1) : `%%${input}%%`
 
 const list = [
   normalise({
-    name: 'Output',
+    name: 'output',
     inputs: [
-      { type: 'real', name: 'Output' }
+      { type: 'real', name: 'output' }
     ]
   }),
 
   normalise({
-    name: 'Constant',
+    name: 'constant',
     params: [
-      { type: 'int', name: 'Value' }
+      { type: 'int', name: 'value' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       return mkNodeDefinition({
         out: ['out'],
-        process: `double %%out%% = ${node.params.get('Value')};`
+        process: `double %%out%% = ${node.params.get('value')};`
       })
     }
   }),
 
   normalise({
-    name: 'Sine Wave',
+    name: 'sine_generator',
     inputs: [
-      { type: 'real', name: 'Period' }
+      { type: 'real', name: 'period' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
@@ -55,91 +55,91 @@ const list = [
         out: ['out'],
         storage: 'int %%id%%_tick;',
         init: '%%id%%_tick = 0;',
-        process: `%%id%%_tick++;\ndouble %%out%% = sin(%%id%%_tick / ${gir(node, 'Period')}) * 0.04f;`
+        process: `%%id%%_tick++;\ndouble %%out%% = sin(%%id%%_tick / ${gir(node, 'period')}) * 0.04f;`
       })
     }
   }),
 
   normalise({
-    name: 'Mul',
+    name: 'mul',
     inputs: [
-      { type: 'real', name: 'A' },
-      { type: 'real', name: 'B' }
+      { type: 'real', name: 'a' },
+      { type: 'real', name: 'b' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       return mkNodeDefinition({
         in: ['a', 'b'],
         out: ['out'],
-        process: `double %%out%% = ${gir(node, 'A')} * ${gir(node, 'B')};`
+        process: `double %%out%% = ${gir(node, 'a')} * ${gir(node, 'b')};`
       })
     }
   }),
 
   normalise({
-    name: 'Add',
+    name: 'add',
     inputs: [
-      { type: 'real', name: 'A' },
-      { type: 'real', name: 'B' }
+      { type: 'real', name: 'a' },
+      { type: 'real', name: 'b' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       return mkNodeDefinition({
         in: ['a', 'b'],
         out: ['out'],
-        process: `double %%out%% = ${gir(node, 'A')} + ${gir(node, 'B')};`
+        process: `double %%out%% = ${gir(node, 'a')} + ${gir(node, 'b')};`
       })
     }
   }),
 
   normalise({
-    name: 'Delay',
+    name: 'delay',
     inputs: [
-      { type: 'real', name: 'In' }
+      { type: 'real', name: 'in' }
     ],
     params: [
-      { type: 'int', name: 'Delay' }
+      { type: 'int', name: 'delay' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       return mkNodeDefinition({
         in: ['in'],
         out: ['out'],
-        storage: `static int %%id%%_tick;\nstatic double %%id%%_buffer[${node.params.get('Delay')}];`,
+        storage: `static int %%id%%_tick;\nstatic double %%id%%_buffer[${node.params.get('delay')}];`,
         init: '%%id%%_tick = 0;',
         process: 'double %%out%% = %%id%%_buffer[%%id%%_tick];',
-        processEpilogue: `%%id%%_buffer[%%id%%_tick] = %%in%%;\n%%id%%_tick = (%%id%%_tick + 1) % ${node.params.get('Delay')};`,
+        processEpilogue: `%%id%%_buffer[%%id%%_tick] = %%in%%;\n%%id%%_tick = (%%id%%_tick + 1) % ${node.params.get('delay')};`,
         isDirect: false
       })
     }
   }),
 
   normalise({
-    name: 'BiQuad Lowpass',
+    name: 'biquad_lowpass',
     inputs: [
-      { type: 'real', name: 'In' }
+      { type: 'real', name: 'in' }
     ],
     params: [
-      { type: 'real', name: 'F' },
-      { type: 'real', name: 'Q' }
+      { type: 'real', name: 'f' },
+      { type: 'real', name: 'q' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       const Fs = 14400 * 4
-      const f0 = node.params.get('F') || 0
-      const Q = node.params.get('Q') || 0
+      const f0 = node.params.get('f') || 0
+      const Q = node.params.get('q') || 0
 
       const w0 = 2 * Math.PI * f0 / Fs
       const alpha = Math.sin(w0) / (2 * Q)
@@ -170,22 +170,22 @@ const list = [
   }),
 
   normalise({
-    name: 'BiQuad Hipass',
+    name: 'biquad_hipass',
     inputs: [
-      { type: 'real', name: 'In' }
+      { type: 'real', name: 'in' }
     ],
     params: [
-      { type: 'real', name: 'F' },
-      { type: 'real', name: 'Q' }
+      { type: 'real', name: 'f' },
+      { type: 'real', name: 'q' }
     ],
     outputs: [
-      { type: 'real', name: 'Out' }
+      { type: 'real', name: 'out' }
     ],
 
     makeDefinition (node) {
       const Fs = 14400 * 4
-      const f0 = node.params.get('F') || 0
-      const Q = node.params.get('Q') || 0
+      const f0 = node.params.get('f') || 0
+      const Q = node.params.get('q') || 0
 
       const w0 = 2 * Math.PI * f0 / Fs
       const alpha = Math.sin(w0) / (2 * Q)
