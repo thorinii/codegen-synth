@@ -47,11 +47,11 @@ class Model {
     return this.addNode(Constant, { value })
   }
 
-  addVariable (name, initialValue) {
-    const varId = this._varCount++
-    const node = this._createNode(Variable, { value: initialValue, varId })
+  addVariable (id, initialValue) {
+    this._varCount = Math.max(this._varCount, id + 1)
+    const node = this._createNode(Variable, { value: initialValue, varId: id })
     node.set = value => {
-      this._send(`set ${varId} ${value}`)
+      this._send(`set ${id} ${value}`)
     }
     this.nodes.push(node)
     return node

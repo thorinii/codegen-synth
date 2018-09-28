@@ -6,9 +6,17 @@
 #include <stdio.h>
 #include <math.h>
 #include <pthread.h>
+#include <string.h>
 
 #include <jack/jack.h>
 #include <jack/midiport.h>
+
+
+inline bool startsWith(const char *pre, const char *str) {
+  size_t lenpre = strlen(pre);
+  size_t lenstr = strlen(str);
+  return lenstr < lenpre ? false : strncmp(pre, str, lenpre) == 0;
+}
 
 
 static bool going = false;
@@ -85,7 +93,10 @@ void *msg_thread(void *arg) {
   while ((lineLength = getline(&line, &bufferLength, stdin)) >= 0) {
     int var = 0;
     double value = 0;
-    if (sscanf(line, "set %d %lf", &var, &value)) {
+
+    if (startsWith("start", line)) {
+      going = true;
+    } else if (startsWith("set", line) && sscanf(line, "set %d %lf", &var, &value)) {
       if (var >= 0 && var < VAR_COUNT) {
         vars[var] = value;
       } else {

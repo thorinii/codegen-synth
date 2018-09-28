@@ -15,13 +15,13 @@
                                                                -> controller
 * JS node
 * MIDI Note node
+* DC filter
 * Linear automatic envelope node
 * Noise node
 * Execution graph pass
 * Vector edges (use immutable Maps/Lists for data)
 * Private data structures in frontend (eg for connections, JS node contents, etc)
 - Default graphs (eg Output node for Instrument)
-* MIDI CC node
 * Cheap MIDI note on/off node
 * Oversample by graph (then intelligently partition the graph for optimality)
 * Maths node

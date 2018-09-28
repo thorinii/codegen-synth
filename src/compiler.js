@@ -30,23 +30,18 @@ async function compile (graph) {
 }
 
 function partition (graph) {
-  const realtimeNodes = new Set([
-    'output',
-    'sine_generator',
-    'delay',
-    'biquad_lowpass',
-    'biquad_hipass'
-  ])
-  const jsNodes = new Set([])
-
   // mark nodes we know
   graph = Graph.markNodes(graph, n => {
-    if (realtimeNodes.has(n.type)) return [MARK_REALTIME]
-    else if (jsNodes.has(n.type)) return [MARK_JS]
+    const type = Nodes.lookup(n.type)
+
+    if (type.onlyRealtime) return [MARK_REALTIME]
+    else if (type.onlyController) return [MARK_JS]
     else return []
   })
 
+  // propagate requirements: only realtime nodes can come after a realtime
   graph = Graph.markForwards(graph, MARK_REALTIME)
+  // only JS nodes can come before a JS
   graph = Graph.markBackwards(graph, MARK_JS)
 
   // mark nodes that are unassigned as JS
@@ -59,9 +54,9 @@ function partition (graph) {
   return Graph.partition(graph, [MARK_JS, MARK_REALTIME], isRight => {
     if (!isRight) throw new Error('Does not support realtime -> JS connections')
 
-    const varId = '' + (varCounter++)
+    const varId = varCounter++
     return {
-      leftNode: Graph.Node({ type: 'var', params: Map({ id: varId }) }),
+      leftNode: Graph.Node({ type: 'var_bridge', params: Map({ id: varId }) }),
       leftEdgeTarget: 'value',
       rightNode: Graph.Node({ type: 'var', params: Map({ id: varId }) }),
       rightEdgeTarget: 'out'
@@ -96,7 +91,7 @@ function createRealtimeModel (graph) {
       const nodeConfig = {
         params: node.params
       }
-      const definition = type.makeDefinition(nodeConfig)
+      const definition = type.makeRealtime(nodeConfig)
       return model.addNode(definition, {})
     }
   }
@@ -136,9 +131,11 @@ function createControllerModel (graph) {
   let generatedNodeCounter = 0
 
   graph.nodes.entrySeq().forEach(([id, node]) => {
+    const type = Nodes.lookup(node.type).controller
+
     nodesById = nodesById.set(id, ControllerNode({
       id,
-      type: node.type,
+      type: type,
       params: node.params
     }))
   })
@@ -146,21 +143,21 @@ function createControllerModel (graph) {
   graph.edges.forEach(edge => {
     if (Graph.hasFrom(edge)) {
       nodesById = nodesById.update(edge.from.get(0), n => {
-        return n.update('outputs', o => o.set(edge.from.get(1), ControllerEdge({
+        return n.update('outputs', o => o.update(edge.from.get(1), List(), o => o.push(ControllerEdge({
           node: edge.to.get(0),
           target: edge.to.get(1)
-        })))
+        }))))
       })
     } else {
       const generatedId = '$' + generatedNodeCounter++
       nodesById = nodesById.set(generatedId, ControllerNode({
         id: generatedId,
-        type: 'constant',
+        type: Nodes.lookup('constant').controller,
         params: Map.of('value', edge.from),
-        outputs: Map.of('value', ControllerEdge({
+        outputs: Map.of('out', List.of(ControllerEdge({
           node: edge.to.get(0),
           target: edge.to.get(1)
-        }))
+        })))
       }))
     }
   })

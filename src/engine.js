@@ -1,4 +1,4 @@
-const { List } = require('immutable')
+const { List, Map } = require('immutable')
 const byline = require('byline')
 const { spawn } = require('child_process')
 const ch = require('medium')
@@ -11,13 +11,23 @@ const go = afn => {
 
 class Controller {
   constructor (model, cmdCh, msgCh) {
-    this._queue = List()
+    this._cmdCh = cmdCh
 
-    console.log(model.nodes.toArray())
-    // TODO: instantiate graph
+    this._realtimeGoing = false
+    this._queue = List()
     this._nodes = List()
-    this._midiNoteNodes = List()
-    this._midiCcNodes = List()
+    this._nodesById = Map()
+
+    model.nodes.forEach(definition => {
+      const node = {
+        msgTypes: definition.type.msgTypes,
+        definition,
+        data: definition.type.construct(definition.params)
+      }
+
+      this._nodes = this._nodes.push(node)
+      this._nodesById = this._nodesById.set(definition.id, node)
+    })
 
     go(async () => {
       while (true) {
@@ -31,24 +41,32 @@ class Controller {
     })
   }
 
+  _enqueueForAble (msg) {
+    this._nodes
+      .filter(n => n.msgTypes.has(msg.type))
+      .forEach(n => this._enqueue({ node: n, ...msg }))
+  }
+
+  _enqueue (job) {
+    if (job.node && !job.node.msgTypes.has(job.type)) {
+      throw new Error(`Node ${job.node.definition.id} cannot handle message "${job.type}"`)
+    }
+
+    this._queue = this._queue.push(job)
+  }
+
   _forwardToQueue (msg) {
     switch (msg.msg) {
       case 'start':
-        console.log('START')
-        this._nodes.forEach(n => {
-          this._enqueue({ job: 'init', node: n })
-        })
+        this._realtimeGoing = false
+        this._enqueueForAble({ type: 'init' })
         break
 
       case 'midi':
         if (msg.type === 'note-down' || msg.type === 'note-up') {
-          this._midiNoteNodes.forEach(n => {
-            this._enqueue({ job: 'midi-receive', node: n, msg })
-          })
+          this._enqueueForAble({ ...msg, type: 'midi-note' })
         } else if (msg.type === 'cc') {
-          this._midiCcNodes.forEach(n => {
-            this._enqueue({ job: 'midi-receive', node: n, msg })
-          })
+          this._enqueueForAble({ ...msg, type: 'midi-cc' })
         } else {
           console.warn('Unknown realtime MIDI message:', msg)
         }
@@ -61,12 +79,36 @@ class Controller {
   }
 
   async _processQueue () {
-    console.log(this._queue)
-    // TODO: job queue (plain JSON jobs, eg Input MIDI, pass value/msg)
-    // TODO: each job is async and can return multiple new jobs
+    // TODO: handle infinite loops
+
+    while (!this._queue.isEmpty()) {
+      const job = this._queue.first()
+      this._queue = this._queue.shift()
+
+      const data = job.node.data
+      const pushOutFn = (port, msg) => {
+        job.node.definition.outputs.get(port, List()).forEach(edge => {
+          const destinationNode = this._nodesById.get(edge.node)
+          this._enqueue({ ...msg, node: destinationNode, target: edge.target })
+        })
+      }
+      await job.node.definition.type.handle(data, job, pushOutFn)
+    }
   }
 
-  _pushOutputs () {}
+  _pushOutputs () {
+    this._nodes
+      .filter(n => !!n.definition.type.getBridgeVar)
+      .forEach(node => {
+        const [varId, value] = node.definition.type.getBridgeVar(node.data)
+        ch.put(this._cmdCh, `set ${varId} ${value}`)
+      })
+
+    if (!this._realtimeGoing) {
+      ch.put(this._cmdCh, 'start')
+      this._realtimeGoing = true
+    }
+  }
 }
 
 class RealtimeProcess {
