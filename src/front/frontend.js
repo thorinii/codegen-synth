@@ -1,14 +1,15 @@
+import Ace from 'ace'
 import Vue from 'vue'
+// import Edn from 'jsedn'
 
 import * as Api from './api'
-import { GraphUi } from './graph-ui'
+// import * as Graph from '../graph'
 
 const viewState = {
+  files: [],
   nodeTypes: [],
-  subGraphs: [],
-  instruments: [],
 
-  selectedGraph: null,
+  selectedFile: null,
 
   createSubGraph: () => {
     console.log('Creating subgraph')
@@ -19,48 +20,57 @@ new Vue({
   data: viewState
 })
 
+const editor = Ace.edit('code-editor', {
+  mode: 'ace/mode/clojure',
+  selectionStyle: 'text'
+})
+editor.session.setTabSize(2)
+editor.session.setUseSoftTabs(true)
+editor.session.on('change', delta => {
+  const viewModel = viewState.files.find(f => f.name === viewState.selectedFile)
+  if (!viewState.selectedFile || !viewModel) return
+
+  const content = editor.session.getValue()
+  viewModel.saving = true
+
+  Api.uploadFile(viewState.selectedFile, content)
+    .then(() => {
+      viewModel.content = content.replace(/ +$/mg, '\n').replace(/\n*$/, '\n')
+      viewModel.saving = false
+    })
+    .then(null, e => {
+      console.error('Failed to upload file')
+    })
+})
+
 async function main () {
-  const graphUi = new GraphUi(document.querySelector('#rete'))
-  graphUi.setOnChange(async graph => {
-    if (!viewState.selectedGraph) return
-    await Api.uploadGraph(viewState.selectedGraph, graph)
-  })
+  const editorStorage = await Api.loadEditorStorage()
 
-  const env = await Api.loadEnvironment()
-  graphUi.setAvailableNodeTypes(env.nodes)
+  for (const file in editorStorage.files) {
+    const content = editorStorage.files[file].replace(/ +$/mg, '\n').replace(/\n*$/, '\n')
 
-  for (const node of env.nodes) {
-    viewState.nodeTypes.push({
-      name: node.name,
-      create () {
-        graphUi.addNode(node.name)
+    viewState.files.push({
+      name: file,
+      content,
+      saving: false,
+      switchTo () {
+        viewState.selectedFile = Object.keys(editorStorage.files)[0] || null
+        editor.setValue(this.content)
       }
     })
   }
 
-  for (const id of env.subGraphs) {
-    const graph = env.graphs[id]
-    viewState.subGraphs.push({
-      id,
-      name: graph.name,
-      switchTo: () => {}
-    })
-  }
+  // for (const node of env.nodes) {
+  //   viewState.nodeTypes.push({
+  //     name: node.name,
+  //     create () {
+  //       render()
+  //     }
+  //   })
+  // }
 
-  for (const id of env.instruments) {
-    const graph = env.graphs[id]
-    viewState.instruments.push({
-      id,
-      name: graph.name,
-      switchTo: () => {}
-    })
-  }
-
-  // note: these are not equivalent. This just defaults the currently edited
-  // graph to the active instrument
-  viewState.selectedGraph = env.activeInstrument
-  if (viewState.selectedGraph !== null) {
-    await graphUi.showGraph(env.graphs[viewState.selectedGraph])
+  if (viewState.files.length > 0) {
+    viewState.files[0].switchTo()
   }
 }
 

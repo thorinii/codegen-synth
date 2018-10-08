@@ -1,4 +1,5 @@
 const { Map, List, Set, Record } = require('immutable')
+const Edn = require('jsedn')
 
 const Graph = require('./graph')
 const prettyI = require('pretty-immutable')
@@ -10,8 +11,11 @@ const Nodes = require('./toplevel/nodes')
 const MARK_JS = 'js'
 const MARK_REALTIME = 'realtime'
 
-async function compile (graph) {
-  const [jsGraph, realtimeGraph] = partition(graph)
+async function compile (files, activeInstrument) {
+  const graphs = parseGraphs(files)
+  const instrumentGraph = inlineGraphNodes(activeInstrument, graphs)
+
+  const [jsGraph, realtimeGraph] = partition(instrumentGraph)
 
   // TODO: dead node pass
   // console.log(prettyI(jsGraph))
@@ -27,6 +31,66 @@ async function compile (graph) {
     controller: controllerModel,
     realtime: realtimeExe
   }
+}
+
+function parseGraphs (files) {
+  const parsedEdn = files.map((content, filename) => {
+    try {
+      return Edn.parse('(' + content + ')')
+    } catch (e) {
+      throw new Error('Failed to parse file ' + filename + ': ' + e)
+    }
+  })
+
+  const parseGraph = (filename, list) => {
+    let name = null
+    let description = null
+
+    list.val.forEach((item, idx) => {
+      if (idx === 0) return // skip the type
+
+      if (idx === 1) {
+        name = item.name
+        return
+      }
+      if (idx === 2 && typeof item === 'string') {
+        description = item
+        return
+      }
+
+      // TODO: save inputs, outputs, nodes, and edges
+      console.log(idx, item)
+    })
+
+    if (name === null) throw new Error('Graph needs a name:', list)
+    return {
+      name,
+      description
+    }
+  }
+
+  parsedEdn.forEach((edn, filename) => {
+    edn.each(item => {
+      if (!(item instanceof Edn.List)) return
+
+      const type = item.at(0).val
+
+      if (type === 'instrument') {
+        const graph = parseGraph(filename, item)
+        console.log('instrument', graph.name, graph)
+      } else if (type === 'node') {
+        const graph = parseGraph(filename, item)
+        console.log('node', graph.name, graph)
+      } else {
+        console.warn('Unknown item type:', type)
+      }
+    })
+  })
+  return Map()
+}
+
+function inlineGraphNodes (mainGraph, nodeGraphs) {
+  return Graph.Graph()
 }
 
 function partition (graph) {

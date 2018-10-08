@@ -1,12 +1,13 @@
 import { eslint } from 'rollup-plugin-eslint'
+import commonjs from 'rollup-plugin-commonjs'
+import nodeResolve from 'rollup-plugin-node-resolve'
 
 export default {
   input: 'src/front/frontend.js',
 
   external: [
-    'rete',
-    'rete-alight-render-plugin',
-    'rete-connection-plugin',
+    'ace',
+    'jsedn',
     'vue'
   ],
 
@@ -16,9 +17,8 @@ export default {
     sourcemap: true,
 
     globals: {
-      'rete': 'Rete',
-      'rete-alight-render-plugin': 'AlightRenderPlugin',
-      'rete-connection-plugin': 'ConnectionPlugin',
+      'ace': 'ace',
+      'jsedn': 'jsedn',
       'vue': 'Vue'
     }
   },
@@ -28,6 +28,10 @@ export default {
       exclude: [
         'src/styles/**'
       ]
+    }),
+
+    nodeResolve(),
+    commonjs({
     })
   ],
 

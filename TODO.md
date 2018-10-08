@@ -9,19 +9,17 @@
     - Compiler revamp
     - Runtime revamp
 
-* Compiler revamp
-    * Pipeline that works on graphs:
-      abstract graph -> scalarised -> flattened -> partitioned -> scheduled -> C code
-                                                               -> controller
+* Use a text-based graph editor (EDN/Clojure notation)
+    - Parse the text into graphs
 * JS node
 * MIDI Note node
 * DC filter
-* Linear automatic envelope node
+* Linear timed-ramp envelope node
 * Noise node
+* Implement a readonly renderer for the graph
 * Execution graph pass
 * Vector edges (use immutable Maps/Lists for data)
-* Private data structures in frontend (eg for connections, JS node contents, etc)
-- Default graphs (eg Output node for Instrument)
+* Default graphs (eg Output node for Instrument)
 * Cheap MIDI note on/off node
 * Oversample by graph (then intelligently partition the graph for optimality)
 * Maths node

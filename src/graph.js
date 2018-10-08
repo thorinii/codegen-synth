@@ -1,4 +1,4 @@
-const shortId = require('shortid')
+const nanoid = require('./id_generator')
 const { Map, List, Set, Record } = require('immutable')
 
 const Graph = Record({
@@ -43,8 +43,12 @@ function mkGraph (graph) {
   })
 }
 
+function addNode (graph, id, node) {
+  return graph.update('nodes', ns => ns.set(id, node))
+}
+
 function mkNodeId () {
-  return shortId.generate()
+  return nanoid(10)
 }
 
 function hasFrom (edge) {
@@ -182,6 +186,8 @@ function partition (graph, [leftMark, rightMark], bridgeFn) {
 module.exports = {
   mkGraph,
 
+  addNode,
+
   markNodes,
   markForwards,
   markBackwards,
@@ -191,5 +197,8 @@ module.exports = {
   Node,
   Edge,
 
-  hasFrom
+  hasFrom,
+
+  emptyGraph: Graph(),
+  mkNodeId
 }

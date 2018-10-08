@@ -1,44 +1,19 @@
 const express = require('express')
 const fs = require('fs')
 const path = require('path')
-const shortid = require('shortid')
 const { promisify } = require('util')
+const { Map, List, Set, Record } = require('immutable')
 
 const Nodes = require('./src/toplevel/nodes')
 
-const { Model } = require('./src/model')
-const { compile, startEngine } = require('./src/engine')
+const { startEngine } = require('./src/engine')
 const compiler = require('./src/compiler')
 const { mkGraph } = require('./src/graph')
 
-function createGraph (env, name) {
-  const id = shortid.generate()
-  env.graphs[id] = {
-    id,
-    name,
-    nodes: [],
-    edges: []
-  }
-  return id
-}
-
-function createInstrument (env, name) {
-  const id = createGraph(env, name)
-  // TODO: add default nodes
-  env.instruments.push(id)
-  if (env.activeInstrument === null) {
-    env.activeInstrument = id
-  }
-  return id
-}
-
-const environment = {
-  nodes: Nodes.list,
-  subGraphs: [],
-  instruments: [],
-  graphs: {},
+let editorStorage = Record({
+  files: Map(),
   activeInstrument: null
-}
+}, 'EditorStorage')()
 
 class Api {
   constructor () {
@@ -55,12 +30,12 @@ class Api {
 
     app.get('/', (req, res) => res.render('page'))
 
-    app.get('/api/environment', (req, res) => {
-      res.json(environment)
+    app.get('/api/editor_storage', (req, res) => {
+      res.json(editorStorage)
     })
 
-    app.post('/api/graph/:id', (req, res) => {
-      this._onUpdate(req.params.id, req.body)
+    app.post('/api/editor_storage/:file', (req, res) => {
+      this._onUpdate(req.params.file, req.body.content)
       res.json({})
     })
 
@@ -82,22 +57,21 @@ class Backend {
     this._engine = null
   }
 
-  async push (graph) {
-    console.log('Updating graph')
-
+  async push (editorStorage) {
     let compiled
     try {
-      compiled = await this.compile(graph)
+      compiled = await this.compile(editorStorage.files, editorStorage.activeInstrument)
     } catch (e) {
       console.warn('Failed to compile', e)
       return
     }
 
+    console.log('Restarting engine')
     await this.swapEngine(compiled)
   }
 
-  async compile (graph) {
-    const result = await compiler.compile(mkGraph(graph))
+  async compile (files, activeInstrument) {
+    const result = await compiler.compile(files, activeInstrument)
     return result
   }
 
@@ -107,50 +81,53 @@ class Backend {
       await this._engine.waitForExit()
     }
 
-    if (true) {
+    if (false) {
       this._engine = startEngine(compiled)
     }
   }
 }
 
 async function main () {
-  const savedEnv = await loadEnvironment()
-  if (savedEnv) {
-    Object.assign(environment, savedEnv, {
-      nodes: Nodes.list
-    })
+  const savedData = await loadEditorStorage()
+  if (savedData) {
+    editorStorage = editorStorage.merge(savedData)
   } else {
-    createInstrument(environment, 'Default')
+    editorStorage = editorStorage.update('files', fs => fs.set('default', ''))
   }
 
   const backend = new Backend()
   const api = new Api()
-  api.setOnUpdate((id, graph) => {
-    Object.assign(environment.graphs[id], graph)
-    backend.push(graph)
+  api.setOnUpdate((file, content) => {
+    editorStorage = editorStorage.update('files', fs => fs.set(file, content))
+
+    backend.push(editorStorage)
       .then(null, e => console.error('Crash in backend', e))
-    saveEnvironment(environment)
+
+    saveEditorStorage(editorStorage)
       .then(null, e => console.warn('Failed to save graph', e))
   })
   api.start()
 
-  backend.push(environment.graphs[environment.activeInstrument])
+  backend.push(editorStorage)
+    .then(null, e => console.error('Crash in backend', e))
 }
 main()
   .then(null, e => console.error('Crash in main', e))
 
-async function loadEnvironment () {
+async function loadEditorStorage () {
   try {
     const content = await promisify(fs.readFile)(path.join(__dirname, 'save.json'))
     return JSON.parse(content)
   } catch (e) {
+    if (e.code === 'ENOENT') return null
+
     console.error(e)
     return null
   }
 }
 
-async function saveEnvironment (env) {
-  const json = JSON.stringify(env)
+async function saveEditorStorage (es) {
+  const json = JSON.stringify(es)
 
   return promisify(fs.writeFile)(path.join(__dirname, 'save.json'), json)
 }

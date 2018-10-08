@@ -113,7 +113,7 @@ const list = [
 
       async handle (data, msg, pushOutFn) {
         if (msg.controller === data) {
-          pushOutFn('out', { type: 'value', value: msg.value })
+          pushOutFn('out', { type: 'value', value: msg.value / 127 })
         }
       }
     })
@@ -132,9 +132,34 @@ const list = [
       return mkRealtimeNode({
         in: ['period'],
         out: ['out'],
-        storage: 'int %%id%%_tick;',
+        storage: 'double %%id%%_tick;',
         init: '%%id%%_tick = 0;',
-        process: `%%id%%_tick++;\ndouble %%out%% = sin(%%id%%_tick / fmax(0.001, ${gir(node, 'period')})) * 0.04f;`
+        process: `%%id%%_tick += (M_PI * ${gir(node, 'period')}) / (4 * 14400); if (%%id%%_tick > M_PI * 2) %%id%%_tick -= M_PI * 2;\ndouble %%out%% = sin(%%id%%_tick) * 0.04f;`
+      })
+    }
+  }),
+
+  mkNode({
+    name: 'speed_envelope',
+    inputs: [
+      { type: 'real', name: 'value' },
+      { type: 'real', name: 'speed' }
+    ],
+    outputs: [
+      { type: 'real', name: 'out' }
+    ],
+
+    makeRealtime (node) {
+      return mkRealtimeNode({
+        in: ['value', 'speed'],
+        out: ['out'],
+        storage: 'double %%id%%_value;',
+        init: '%%id%%_value = 0;',
+        process: `double %%id%%_diff = ${gir(node, 'value')} - %%id%%_value;\n` +
+                 `double %%id%%_speed = ${gir(node, 'speed')} / (4 * 14400);\n` +
+                 `if (abs(%%id%%_diff) < %%id%%_speed) %%id%%_value = ${gir(node, 'value')};\n` +
+                 `else %%id%%_value += copysign(%%id%%_speed, %%id%%_diff);\n` +
+                 `double %%out%% = %%id%%_value;`
       })
     }
   }),
