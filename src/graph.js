@@ -43,8 +43,30 @@ function mkGraph (graph) {
   })
 }
 
+function setParam (graph, name, value) {
+  return graph.update('params', p => {
+    return p.set(name, value)
+  })
+}
+
+function addIncomingTarget (graph, name, params) {
+  return graph.update('params', p => {
+    return p.update('in', Map(), incoming => incoming.set(name, params))
+  })
+}
+
+function addOutgoingTarget (graph, name, params) {
+  return graph.update('params', p => {
+    return p.update('out', Map(), outgoing => outgoing.set(name, params))
+  })
+}
+
 function addNode (graph, id, node) {
   return graph.update('nodes', ns => ns.set(id, node))
+}
+
+function addEdge (graph, edge) {
+  return graph.update('edges', es => es.add(edge))
 }
 
 function mkNodeId () {
@@ -186,7 +208,11 @@ function partition (graph, [leftMark, rightMark], bridgeFn) {
 module.exports = {
   mkGraph,
 
+  setParam,
+  addIncomingTarget,
+  addOutgoingTarget,
   addNode,
+  addEdge,
 
   markNodes,
   markForwards,

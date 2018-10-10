@@ -83,6 +83,8 @@ class Backend {
 
     if (false) {
       this._engine = startEngine(compiled)
+    } else {
+      console.log('Engine is stubbed')
     }
   }
 }
@@ -93,6 +95,10 @@ async function main () {
     editorStorage = editorStorage.merge(savedData)
   } else {
     editorStorage = editorStorage.update('files', fs => fs.set('default', ''))
+  }
+
+  if (editorStorage.activeInstrument === null) {
+    editorStorage = editorStorage.set('activeInstrument', 'default/main')
   }
 
   const backend = new Backend()

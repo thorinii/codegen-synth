@@ -33,27 +33,27 @@ const gir = (node, input) => false ? node.inputs.get(input).toFixed(1) : `%%${in
 
 const list = [
   mkNode({
-    name: 'output',
+    name: 'io/mono-output',
     inputs: [
-      { type: 'real', name: 'output' }
+      { type: 'real', name: 'value' }
     ],
 
     onlyRealtime: true
   }),
 
   mkNode({
-    name: 'constant',
+    name: 'core/constant',
     params: [
       { type: 'int', name: 'value' }
     ],
     outputs: [
-      { type: 'real', name: 'out' }
+      { type: 'real', name: 'value' }
     ],
 
     makeRealtime (node) {
       return mkRealtimeNode({
-        out: ['out'],
-        process: `double %%out%% = ${node.params.get('value')};`
+        out: ['value'],
+        process: `double %%value%% = ${node.params.get('value')};`
       })
     },
 
@@ -63,7 +63,7 @@ const list = [
       },
 
       async handle (data, msg, pushOutFn) {
-        pushOutFn('out', { type: 'value', value: data })
+        pushOutFn('value', { type: 'value', value: data })
       }
     })
   }),
@@ -96,45 +96,46 @@ const list = [
   }),
 
   mkNode({
-    name: 'midi_cc',
+    name: 'io/midi-cc',
     params: [
-      { type: 'int', name: 'cc_index' }
+      { type: 'int', name: 'cc-index' }
     ],
     outputs: [
-      { type: 'real', name: 'out' }
+      { type: 'real', name: 'value' }
     ],
 
     controller: Controller({
       msgTypes: Set.of('init', 'midi-cc'),
 
       construct (params) {
-        return params.get('cc_index')
+        return params.get('cc-index')
       },
 
       async handle (data, msg, pushOutFn) {
+        // if (msg.controller) console.log('cc', msg.controller)
         if (msg.controller === data) {
-          pushOutFn('out', { type: 'value', value: msg.value / 127 })
+          pushOutFn('value', { type: 'value', value: msg.value / 127 })
         }
       }
     })
   }),
 
   mkNode({
-    name: 'sine_generator',
+    name: 'wave/sine',
     inputs: [
       { type: 'real', name: 'period' }
     ],
     outputs: [
-      { type: 'real', name: 'out' }
+      { type: 'real', name: 'value' }
     ],
 
     makeRealtime (node) {
       return mkRealtimeNode({
         in: ['period'],
-        out: ['out'],
+        out: ['value'],
         storage: 'double %%id%%_tick;',
         init: '%%id%%_tick = 0;',
-        process: `%%id%%_tick += (M_PI * ${gir(node, 'period')}) / (4 * 14400); if (%%id%%_tick > M_PI * 2) %%id%%_tick -= M_PI * 2;\ndouble %%out%% = sin(%%id%%_tick) * 0.04f;`
+        process: `%%id%%_tick += (M_PI * ${gir(node, 'period')}) / (4 * 14400); if (%%id%%_tick > M_PI * 2) %%id%%_tick -= M_PI * 2;\ndouble %%value%% = sin(%%id%%_tick) * 0.04f;`
       })
     }
   }),
@@ -165,20 +166,20 @@ const list = [
   }),
 
   mkNode({
-    name: 'mul',
+    name: 'maths/mul',
     inputs: [
       { type: 'real', name: 'a' },
       { type: 'real', name: 'b' }
     ],
     outputs: [
-      { type: 'real', name: 'out' }
+      { type: 'real', name: 'value' }
     ],
 
     makeRealtime (node) {
       return mkRealtimeNode({
         in: ['a', 'b'],
-        out: ['out'],
-        process: `double %%out%% = ${gir(node, 'a')} * ${gir(node, 'b')};`
+        out: ['value'],
+        process: `double %%value%% = ${gir(node, 'a')} * ${gir(node, 'b')};`
       })
     },
 
@@ -195,7 +196,7 @@ const list = [
           if (msg.target === 'b') data.b = msg.value
         }
 
-        pushOutFn('out', {
+        pushOutFn('value', {
           type: 'value',
           value: data.a * data.b
         })

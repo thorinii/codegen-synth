@@ -58,8 +58,8 @@ class Model {
   }
 
   connect (from, to) {
-    if (from.out !== undefined) from = from.out
-    if (to.in !== undefined) to = to.in
+    if (from._outputs && from._outputs.has('value')) from = from._outputs.has('value')
+    if (to._inputs && to._inputs.has('value')) to = to._inputs.has('value')
     to.push(from)
   }
 

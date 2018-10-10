@@ -10,7 +10,9 @@
     - Runtime revamp
 
 * Use a text-based graph editor (EDN/Clojure notation)
-    - Parse the text into graphs
+    - Convert edge targets into params
+    - Inlining
+    - Pipe compiler errors
 * JS node
 * MIDI Note node
 * DC filter
