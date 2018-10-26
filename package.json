@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
+    "acorn": "^6.0.2",
     "byline": "^5.0.0",
     "denodeify": "^1.2.1",
     "express": "^4.16.3",

@@ -1,5 +1,6 @@
 const { Map, List, Set, Record } = require('immutable')
 const Edn = require('jsedn')
+const Acorn = require('acorn')
 
 const Graph = require('./graph')
 const prettyI = require('pretty-immutable')
@@ -12,11 +13,17 @@ const MARK_JS = 'js'
 const MARK_REALTIME = 'realtime'
 
 async function compile (files, activeInstrument) {
+  console.log()
+  console.log('COMPILING')
+
   const parsedGraphs = parseGraphs(files)
 
   const instrumentGraph = parsedGraphs.instruments.get(activeInstrument).graph
+  renderGraphAsDot('parsed', instrumentGraph)
+
   // TODO: sanitisation pass that checks all nodes exist
   const inlinedGraph = inlineGraphNodes(instrumentGraph, parsedGraphs)
+  renderGraphAsDot('inlined', inlinedGraph)
 
   const [jsGraph, realtimeGraph] = partition(inlinedGraph)
 
@@ -74,7 +81,7 @@ function parseGraphs (files) {
             const values = item.val[3].vals
             keys.forEach((key, idx) => {
               const value = values[idx]
-              params = params.set(key.val, value)
+              params = params.set(key.val, Edn.toJS(value))
             })
           }
 
@@ -103,7 +110,6 @@ function parseGraphs (files) {
               from: List.of(nodeId, 'value'),
               to: List.of(item.val[2].ns, item.val[2].name)
             })
-            console.log(item.val[1])
 
             graph = Graph.addNode(graph, nodeId, node)
             graph = Graph.addEdge(graph, edge)
@@ -165,8 +171,117 @@ function parseGraphs (files) {
 }
 
 function inlineGraphNodes (rootGraph, environment) {
-  console.log('compiling', rootGraph, environment)
-  return rootGraph
+  let graph = rootGraph
+  // TODO: inline graphs
+
+  // inline maths expressions
+  graph = Graph.mapNodes(graph, (id, node) => {
+    if (node.type !== 'maths/expr') return null
+
+    const exprString = node.params.get('expr')
+    const parse = Acorn.parse(exprString)
+    if (parse.body.length !== 1 || parse.body[0].type !== 'ExpressionStatement') {
+      throw new TypeError('Bad maths expression: ' + exprString)
+    }
+    const parsedExpression = parse.body[0].expression
+
+    const inputs = node.params.get('inputs')
+
+    let subGraph = Graph.Graph()
+    subGraph = Graph.addOutgoingTarget(subGraph, 'out', { type: 'real' })
+    inputs.forEach(i => {
+      subGraph = Graph.addIncomingTarget(subGraph, i, { type: 'real' })
+    })
+
+    let idCounter = 0
+    const mkId = type => type + '-' + (idCounter++)
+    const createNodeTree = expr => {
+      switch (expr.type) {
+        case 'Identifier': {
+          const name = expr.name
+          if (!inputs.includes(name)) throw new TypeError(`Bad maths expression (variable not defined ${name}): ${exprString}`)
+          return List.of('self', name)
+        }
+
+        case 'Literal': {
+          const id = mkId('lit')
+          const node = Graph.Node({
+            type: 'core/constant',
+            params: Map({ value: expr.value })
+          })
+          subGraph = Graph.addNode(subGraph, id, node)
+          return List.of(id, 'value')
+        }
+
+        case 'UnaryExpression': {
+          const op = expr.operator
+          const subTarget = createNodeTree(expr.argument)
+
+          if (op !== '-') throw new TypeError(`Bad maths expression (bad unary operator ${op}): ${exprString}`)
+
+          // negation constant
+          const constantId = mkId('neg')
+          const constantNode = Graph.Node({
+            type: 'core/constant',
+            params: Map({ value: -1 })
+          })
+          subGraph = Graph.addNode(subGraph, constantId, constantNode)
+
+          // multiply node
+          const mulId = mkId('negmul')
+          const mulNode = Graph.Node({ type: 'maths/mul' })
+          subGraph = Graph.addNode(subGraph, mulId, mulNode)
+
+          subGraph = Graph.addEdge(subGraph, Graph.Edge({
+            from: subTarget,
+            to: List.of(mulId, 'a')
+          }))
+          subGraph = Graph.addEdge(subGraph, Graph.Edge({
+            from: List.of(constantId, 'value'),
+            to: List.of(mulId, 'b')
+          }))
+
+          return List.of(mulId, 'value')
+        }
+
+        case 'BinaryExpression': {
+          const op = expr.operator
+          const leftTarget = createNodeTree(expr.left)
+          const rightTarget = createNodeTree(expr.right)
+
+          const nodeTypes = Map([
+            ['*', 'maths/mul'],
+            ['+', 'maths/add']])
+          if (!nodeTypes.has(op)) throw new TypeError(`Bad maths expression (bad binary operator ${op}): ${exprString}`)
+
+          const id = mkId('bin')
+          const node = Graph.Node({ type: nodeTypes.get(op) })
+          subGraph = Graph.addNode(subGraph, id, node)
+
+          subGraph = Graph.addEdge(subGraph, Graph.Edge({
+            from: leftTarget,
+            to: List.of(id, 'a')
+          }))
+          subGraph = Graph.addEdge(subGraph, Graph.Edge({
+            from: rightTarget,
+            to: List.of(id, 'b')
+          }))
+
+          return List.of(id, 'value')
+        }
+
+        default:
+          throw new TypeError(`Bad maths expression (unknown operator ${expr.type}): ${exprString}`)
+      }
+    }
+
+    const topNodeTarget = createNodeTree(parsedExpression)
+    subGraph = Graph.addEdge(subGraph, Graph.Edge({ from: topNodeTarget, to: List.of('self', 'out') }))
+
+    return subGraph
+  })
+
+  return graph
 }
 
 function partition (graph) {
@@ -249,7 +364,12 @@ function createRealtimeModel (graph) {
     if (List.isList(edge.from)) {
       const fromNode = nodes.get(edge.from.get(0))
       const fromPort = fromNode[edge.from.get(1)]
-      model.connect(fromPort, toPort)
+      try {
+        model.connect(fromPort, toPort)
+      } catch (e) {
+        console.error('Error with ports', edge.from.toJSON(), edge.to.toJSON())
+        throw e
+      }
     } else {
       model.connect(model.addConstant(edge.from), toPort)
     }
@@ -306,6 +426,25 @@ function createControllerModel (graph) {
   return {
     nodes: nodesById.toList()
   }
+}
+
+const path = require('path')
+const { execFile } = require('child_process')
+const fs = require('fs')
+const { promisify } = require('util')
+function renderGraphAsDot (stage, graph) {
+  const renderPath = '/tmp/codegen-synth'
+  const dotPath = path.join(renderPath, stage + '.dot')
+  const svgPath = path.join(renderPath, stage + '.svg')
+
+  const dot = Graph.toDot(graph)
+  promisify(fs.writeFile)(dotPath, dot)
+    .then(() => promisify(execFile)('dot', [
+      '-Tsvg',
+      '-o', svgPath,
+      dotPath
+    ]))
+    .then(() => {}, e => console.warn('Failed to render', e))
 }
 
 module.exports = {

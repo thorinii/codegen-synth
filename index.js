@@ -39,6 +39,10 @@ class Api {
       res.json({})
     })
 
+    app.get('/api/compiler/render/:stage', (req, res) => {
+      res.sendFile(path.join('/tmp/codegen-synth', req.params.stage + '.svg'))
+    })
+
     app.use(express.static(path.join(__dirname, 'build')))
   }
 
@@ -81,7 +85,7 @@ class Backend {
       await this._engine.waitForExit()
     }
 
-    if (false) {
+    if (true) {
       this._engine = startEngine(compiled)
     } else {
       console.log('Engine is stubbed')

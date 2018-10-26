@@ -22,7 +22,7 @@ async function compile (model) {
   try {
     await promisify(execFile)('gcc', [
       '-std=c11',
-      '-Wall', '-Werror',
+      '-Wall', // '-Werror',
       '-O3',
       '-o', tmpBinaryFile,
       tmpSourceFile,

@@ -75,6 +75,10 @@ int process (jack_nframes_t nframes, void *arg) {
       out[i] = 0.0;
     }
   }
+
+  if (isnan(out[0])) {
+    /* %%INIT%% */
+  }
   return 0;
 }
 
@@ -156,6 +160,8 @@ int main (int argc, char *argv[]) {
   ports = jack_get_ports(client, NULL, NULL, JackPortIsInput);
   int i = 0;
   while (ports[i] != NULL) {
+    bool isPhysical = (jack_port_flags(jack_port_by_name(client, ports[i])) & JackPortIsPhysical) != 0;
+    if (isPhysical) { i++; continue; }
     if (jack_connect (client, jack_port_name (output_port), ports[i])) {
       // cerr << "cannot connect output ports" << endl;
     }

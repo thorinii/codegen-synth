@@ -141,6 +141,23 @@ const list = [
   }),
 
   mkNode({
+    name: 'wave/noise',
+    outputs: [
+      { type: 'real', name: 'value' }
+    ],
+
+    makeRealtime (node) {
+      const length = 44100 * 4
+      return mkRealtimeNode({
+        out: ['value'],
+        storage: 'int %%id%%_tick; double *%%id%%_buffer;',
+        init: `%%id%%_tick = 0; %%id%%_buffer = (double*) calloc(sizeof(double), ${length}); for (int i = 0; i < ${length}; i++) %%id%%_buffer[i] = ((double) rand()) / RAND_MAX * 2.0 - 1.0;`,
+        process: `%%id%%_tick = (%%id%%_tick + 1) % ${length}; double %%value%% = %%id%%_buffer[%%id%%_tick];`
+      })
+    }
+  }),
+
+  mkNode({
     name: 'speed_envelope',
     inputs: [
       { type: 'real', name: 'value' },
@@ -205,20 +222,20 @@ const list = [
   }),
 
   mkNode({
-    name: 'add',
+    name: 'maths/add',
     inputs: [
       { type: 'real', name: 'a' },
       { type: 'real', name: 'b' }
     ],
     outputs: [
-      { type: 'real', name: 'out' }
+      { type: 'real', name: 'value' }
     ],
 
     makeRealtime (node) {
       return mkRealtimeNode({
         in: ['a', 'b'],
-        out: ['out'],
-        process: `double %%out%% = ${gir(node, 'a')} + ${gir(node, 'b')};`
+        out: ['value'],
+        process: `double %%value%% = ${gir(node, 'a')} + ${gir(node, 'b')};`
       })
     },
 
@@ -226,7 +243,7 @@ const list = [
   }),
 
   mkNode({
-    name: 'delay',
+    name: 'delay/int',
     inputs: [
       { type: 'real', name: 'in' }
     ],
@@ -242,10 +259,53 @@ const list = [
         in: ['in'],
         out: ['out'],
         storage: `static int %%id%%_tick;\nstatic double %%id%%_buffer[${node.params.get('delay')}];`,
-        init: '%%id%%_tick = 0;',
+        init: `%%id%%_tick = 0; for (int i = 0; i < ${node.params.get('delay')}; i++) %%id%%_buffer[i] = 0;`,
         process: 'double %%out%% = %%id%%_buffer[%%id%%_tick];',
         processEpilogue: `%%id%%_buffer[%%id%%_tick] = %%in%%;\n%%id%%_tick = (%%id%%_tick + 1) % ${node.params.get('delay')};`,
         isDirect: false
+      })
+    }
+  }),
+
+  mkNode({
+    name: 'filter/dc',
+    inputs: [
+      { type: 'real', name: 'in' }
+    ],
+    outputs: [
+      { type: 'real', name: 'out' }
+    ],
+
+    makeRealtime (node) {
+      // TODO: proper blocker from https://www.dsprelated.com/freebooks/filters/DC_Blocker.html
+      const alpha = 0.995
+      return mkRealtimeNode({
+        in: ['in'],
+        out: ['out'],
+        storage: `static double %%id%%_prev;`,
+        init: '%%id%%_prev = 0;',
+        process: `double %%out%% = %%in%% + ${alpha} * %%id%%_prev; %%id%%_prev = %%out%% - %%id%%_prev;`
+      })
+    }
+  }),
+
+  mkNode({
+    name: 'filter/avg-lowpass',
+    inputs: [
+      { type: 'real', name: 'in' }
+    ],
+    outputs: [
+      { type: 'real', name: 'out' }
+    ],
+
+    makeRealtime (node) {
+      const alpha = 0.9997
+      return mkRealtimeNode({
+        in: ['in'],
+        out: ['out'],
+        storage: `static double %%id%%_prev;`,
+        init: '%%id%%_prev = 0;',
+        process: `double %%out%% = ${1 - alpha} * %%in%% + ${alpha} * %%id%%_prev; %%id%%_prev = %%out%%;`
       })
     }
   }),

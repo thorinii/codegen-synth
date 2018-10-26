@@ -9,24 +9,22 @@
     - Compiler revamp
     - Runtime revamp
 
-* Use a text-based graph editor (EDN/Clojure notation)
-    - Convert edge targets into params
-    - Inlining
-    - Pipe compiler errors
+* Convert edge targets into params
+* Inlining
+* Pipe compiler errors
+* Refactor compiler into files (orchestrator, parser, inliner, etc)
 * JS node
 * MIDI Note node
-* DC filter
+* Use proper files rather than a workspace file
+* Proper DC filter
 * Linear timed-ramp envelope node
-* Noise node
-* Implement a readonly renderer for the graph
+* Use codemirror editor
+* Graph visualisation (live with message flows, energy levels, bulkhead operation, etc)
 * Execution graph pass
 * Vector edges (use immutable Maps/Lists for data)
-* Default graphs (eg Output node for Instrument)
 * Cheap MIDI note on/off node
 * Oversample by graph (then intelligently partition the graph for optimality)
-* Maths node
 * Generalise to builtin nodes, C Node, and JS Node
-* Groups
 * Perf Bulkhead nodes
     - When the input to the node drops below a threshold for a time, it stops
       executing the upstream graph, until woken by a message (or other things?).

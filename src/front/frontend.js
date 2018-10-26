@@ -25,6 +25,7 @@ const editor = Ace.edit('code-editor', {
   selectionStyle: 'text'
 })
 editor.session.setTabSize(2)
+document.getElementById('code-editor').style.fontSize = '16px'
 editor.session.setUseSoftTabs(true)
 editor.session.on('change', delta => {
   const viewModel = viewState.files.find(f => f.name === viewState.selectedFile)
@@ -42,6 +43,22 @@ editor.session.on('change', delta => {
       console.error('Failed to upload file')
     })
 })
+
+function delay (ms) {
+  return new Promise((resolve, reject) => setTimeout(() => resolve(), ms))
+}
+
+let graphRenderEl = null
+async function refreshGraphRender () {
+  if (graphRenderEl === null) {
+    graphRenderEl = document.querySelector('#graph-render')
+  }
+
+  graphRenderEl.src = '/api/compiler/render/parsed?t=' + new Date().getTime()
+
+  await delay(500)
+  return refreshGraphRender()
+}
 
 async function main () {
   const editorStorage = await Api.loadEditorStorage()
@@ -72,6 +89,8 @@ async function main () {
   if (viewState.files.length > 0) {
     viewState.files[0].switchTo()
   }
+
+  refreshGraphRender()
 }
 
 main()
